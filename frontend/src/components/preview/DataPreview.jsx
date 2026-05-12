@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { BarChart2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import DistributionChart from "./DistributionChart";
 import CorrelationHeatmap from "./CorrelationHeatmap";
 import PrevalenceBar from "./PrevalenceBar";
 import SampleTable from "./SampleTable";
+import DivergenceTable from "./DivergenceTable";
 
 export default function DataPreview({ runId }) {
   const [preview, setPreview] = useState(null);
@@ -46,6 +48,10 @@ export default function DataPreview({ runId }) {
           <TabsTrigger value="distributions">Distributions</TabsTrigger>
           <TabsTrigger value="correlation">Correlation</TabsTrigger>
           <TabsTrigger value="prevalence">Prevalence</TabsTrigger>
+          <TabsTrigger value="divergence" className="flex items-center gap-1.5">
+            <BarChart2 className="w-3.5 h-3.5" />
+            Divergence
+          </TabsTrigger>
           <TabsTrigger value="sample">Sample Data</TabsTrigger>
         </TabsList>
 
@@ -73,6 +79,10 @@ export default function DataPreview({ runId }) {
 
         <TabsContent value="prevalence" className="pt-4">
           <PrevalenceBar prevalence={preview.prevalence} />
+        </TabsContent>
+
+        <TabsContent value="divergence" className="pt-4">
+          <DivergenceTable columns={preview.columns} />
         </TabsContent>
 
         <TabsContent value="sample" className="pt-4">

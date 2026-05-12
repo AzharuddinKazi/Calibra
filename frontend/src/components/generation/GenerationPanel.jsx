@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Zap } from "lucide-react";
 import { generate } from "../../utils/api";
 
-export default function GenerationPanel({ sessionId, domainPack, domainConfig, onGenerated }) {
+export default function GenerationPanel({ sessionId, domainPack, domainConfig, distributionOverrides, onGenerated }) {
   const [rowCount, setRowCount] = useState(10000);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -23,6 +23,7 @@ export default function GenerationPanel({ sessionId, domainPack, domainConfig, o
         domain_pack: domainPack || "none",
         domain_config: domainConfig || {},
         random_seed: 42,
+        distribution_overrides: distributionOverrides || {},
       });
       onGenerated(data);
     } catch (err) {

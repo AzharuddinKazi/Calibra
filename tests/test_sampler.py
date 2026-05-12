@@ -119,3 +119,58 @@ class TestSampleFromSchema:
         config = self._config([ColumnSpec(name="ts", col_type="datetime")])
         df = sample_from_schema(config, 10, make_rng(0))
         assert df["ts"].dtype == object
+
+
+# ── Distribution overrides ────────────────────────────────────────────────────
+
+from backend.models.schemas import DistributionOverride
+
+
+class TestDistributionOverrides:
+    def _make_continuous_profiles(self):
+        rng = np.random.default_rng(0)
+        df = pd.DataFrame({"amount": rng.normal(100, 20, 500)})
+        return profile_dataframe(df)
+
+    def _make_categorical_profiles(self):
+        df = pd.DataFrame({"channel": np.array(["online"] * 400 + ["atm"] * 100)})
+        return profile_dataframe(df)
+
+    def test_normal_override_uses_custom_mean_and_std(self):
+        profiles = self._make_continuous_profiles()
+        override = DistributionOverride(
+            distribution="normal",
+            params={"loc": 999.0, "scale": 1.0},
+        )
+        rng = make_rng(42)
+        df = sample_from_profile(profiles, 500, rng, distribution_overrides={"amount": override})
+        assert abs(df["amount"].mean() - 999.0) < 5.0
+
+    def test_categorical_override_frequencies_are_respected(self):
+        profiles = self._make_categorical_profiles()
+        override = DistributionOverride(
+            distribution="categorical",
+            params={"frequencies": {"online": 0.1, "atm": 0.9}},
+        )
+        rng = make_rng(42)
+        df = sample_from_profile(profiles, 1000, rng, distribution_overrides={"channel": override})
+        atm_rate = (df["channel"] == "atm").mean()
+        assert atm_rate > 0.80
+
+    def test_columns_without_overrides_are_unaffected(self):
+        rng_ref = np.random.default_rng(0)
+        full_df = pd.DataFrame({
+            "amount": rng_ref.normal(100, 20, 500),
+            "channel": np.array(["online"] * 400 + ["atm"] * 100),
+        })
+        profiles = profile_dataframe(full_df)
+
+        override = DistributionOverride(
+            distribution="normal",
+            params={"loc": 9999.0, "scale": 0.1},
+        )
+        rng = make_rng(0)
+        df = sample_from_profile(
+            profiles, 200, rng, distribution_overrides={"amount": override}
+        )
+        assert set(df["channel"].unique()).issubset({"online", "atm"})

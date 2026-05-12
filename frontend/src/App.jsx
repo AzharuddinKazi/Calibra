@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Check, ArrowLeft } from "lucide-react";
 import Upload from "./components/upload/Upload";
@@ -11,6 +12,9 @@ import PrevalenceBenchmark from "./components/intelligence/PrevalenceBenchmark";
 import DomainConfig from "./components/config/DomainConfig";
 import ConstraintList from "./components/config/ConstraintList";
 import PrevalenceSlider from "./components/config/PrevalenceSlider";
+import DistributionEditor from "./components/config/DistributionEditor";
+import CategoryFrequencyEditor from "./components/config/CategoryFrequencyEditor";
+import ConstraintBuilder from "./components/config/ConstraintBuilder";
 import GenerationPanel from "./components/generation/GenerationPanel";
 import AgentEntryPoint from "./components/agent/AgentEntryPoint";
 import AgentChat from "./components/agent/AgentChat";
@@ -22,6 +26,7 @@ import ResultsDownload from "./components/results/ResultsDownload";
 import { useAgent } from "./hooks/useAgent";
 import { useAnnotation } from "./hooks/useAnnotation";
 import { useConstraintParser } from "./hooks/useConstraintParser";
+import { useDistributionOverrides } from "./hooks/useDistributionOverrides";
 import { annotateColumns } from "./utils/api";
 import { generate, replay } from "./utils/api";
 
@@ -113,10 +118,12 @@ export default function App() {
   const [constraints, setConstraints] = useState([]);
   const [generationResult, setGenerationResult] = useState(null);
   const [previewRunId, setPreviewRunId] = useState(null);
+  const [selectedCatColumn, setSelectedCatColumn] = useState(null);
 
   const agent = useAgent();
   const annotation = useAnnotation();
   const constraintParser = useConstraintParser();
+  const { overrides, setOverride, clearOverride } = useDistributionOverrides();
 
   async function handleEntrySelect(entryPoint, mode) {
     if (entryPoint === "agent_first") {
@@ -168,6 +175,27 @@ export default function App() {
     setConstraints((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function handleAddManualConstraint(constraint) {
+    setConstraints((prev) => [...prev, constraint]);
+  }
+
+  function handleEditCategoryColumn(colName) {
+    setSelectedCatColumn(colName);
+  }
+
+  function handleCategoryFreqSave(freqs) {
+    if (!selectedCatColumn) return;
+    setOverride(selectedCatColumn, {
+      distribution: "categorical",
+      params: { frequencies: freqs },
+    });
+  }
+
+  function handleCategoryFreqClear() {
+    if (!selectedCatColumn) return;
+    clearOverride(selectedCatColumn);
+  }
+
   async function handleGenerate(rowCount) {
     const sid = sessionId || agent.sessionId;
     if (!sid) return;
@@ -178,6 +206,7 @@ export default function App() {
         domain_pack: domainPack || agent.config?.domain_pack || "none",
         domain_config: { active_constraints: constraints },
         random_seed: 42,
+        distribution_overrides: overrides,
       });
       setGenerationResult(result);
       setPreviewRunId(result.run_id);
@@ -196,6 +225,15 @@ export default function App() {
       alert(`Replay failed: ${err.message}`);
     }
   }
+
+  const selectedCatProfile = columnProfiles.find(
+    (p) => p.name === selectedCatColumn && p.col_type === "categorical"
+  ) ?? null;
+
+  const catFreqOverride =
+    selectedCatColumn && overrides[selectedCatColumn]?.params?.frequencies
+      ? overrides[selectedCatColumn].params.frequencies
+      : null;
 
   if (view === VIEW.ENTRY) {
     return (
@@ -347,6 +385,29 @@ export default function App() {
                 <Separator />
 
                 <section className="space-y-3">
+                  <SectionHeader>Distribution Overrides</SectionHeader>
+                  <DistributionEditor
+                    columns={columnProfiles}
+                    overrides={overrides}
+                    onOverrideChange={setOverride}
+                    onOverrideClear={clearOverride}
+                    onEditCategoryColumn={handleEditCategoryColumn}
+                  />
+                  {selectedCatProfile && (
+                    <div className="mt-4">
+                      <CategoryFrequencyEditor
+                        column={selectedCatProfile}
+                        frequencies={catFreqOverride}
+                        onSave={handleCategoryFreqSave}
+                        onClear={handleCategoryFreqClear}
+                      />
+                    </div>
+                  )}
+                </section>
+
+                <Separator />
+
+                <section className="space-y-3">
                   <SectionHeader>Domain Configuration</SectionHeader>
                   <DomainConfig
                     domainPack={domainPack}
@@ -371,18 +432,32 @@ export default function App() {
 
                 <section className="space-y-3">
                   <SectionHeader>Constraints</SectionHeader>
-                  <ConstraintInput
-                    sessionId={sessionId}
-                    onParse={handleConstraintParse}
-                    loading={constraintParser.loading}
-                  />
-                  {constraintParser.parsed && (
-                    <ConstraintReview
-                      parsed={constraintParser.parsed}
-                      onConfirm={handleConstraintConfirm}
-                      onDiscard={constraintParser.discard}
-                    />
-                  )}
+                  <Tabs defaultValue="ai-parser">
+                    <TabsList>
+                      <TabsTrigger value="ai-parser">AI Parser</TabsTrigger>
+                      <TabsTrigger value="manual-builder">Manual Builder</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="ai-parser" className="space-y-3 pt-3">
+                      <ConstraintInput
+                        sessionId={sessionId}
+                        onParse={handleConstraintParse}
+                        loading={constraintParser.loading}
+                      />
+                      {constraintParser.parsed && (
+                        <ConstraintReview
+                          parsed={constraintParser.parsed}
+                          onConfirm={handleConstraintConfirm}
+                          onDiscard={constraintParser.discard}
+                        />
+                      )}
+                    </TabsContent>
+                    <TabsContent value="manual-builder" className="pt-3">
+                      <ConstraintBuilder
+                        columns={columnProfiles}
+                        onAddConstraint={handleAddManualConstraint}
+                      />
+                    </TabsContent>
+                  </Tabs>
                   <ConstraintList
                     constraints={constraints}
                     onDelete={handleConstraintDelete}
@@ -397,6 +472,7 @@ export default function App() {
                     sessionId={sessionId}
                     domainPack={domainPack}
                     domainConfig={{ active_constraints: constraints }}
+                    distributionOverrides={overrides}
                     onGenerated={(result) => {
                       setGenerationResult(result);
                       setPreviewRunId(result.run_id);
@@ -416,6 +492,7 @@ export default function App() {
                       ["Domain Pack", domainPack !== "none" ? domainPack : null],
                       ["Typologies", typologies.length ? typologies.join(", ") : null],
                       ["Constraints", constraints.length ? `${constraints.length} active` : null],
+                      ["Overrides", Object.keys(overrides).length ? `${Object.keys(overrides).length} column${Object.keys(overrides).length > 1 ? "s" : ""}` : null],
                     ].map(([label, val]) => (
                       <div key={label} className="flex justify-between text-xs py-1.5 gap-3">
                         <span className="text-muted-foreground shrink-0">{label}</span>
