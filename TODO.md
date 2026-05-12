@@ -10,7 +10,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` complete
 
 - [x] Project setup — requirements.txt, directory scaffolding, constants.py
 - [x] backend/models/schemas.py — all Pydantic request/response schemas
-- [ ] backend/session/store.py — in-memory session store with asyncio.Lock and expiry sweeper
+- [x] backend/session/store.py — in-memory session store with asyncio.Lock and expiry sweeper
 
 ---
 
