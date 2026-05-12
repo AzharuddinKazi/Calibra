@@ -16,11 +16,11 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` complete
 
 ## Phase 2 — Core Statistical Engine
 
-- [ ] backend/engine/profiler.py — column type inference and distribution fitting
-- [ ] backend/engine/sampler.py — synthetic data sampling (upload-first and agent-first paths)
-- [ ] backend/engine/validator.py — constraint validation with 3-attempt regeneration loop
-- [ ] backend/engine/fidelity.py — JS divergence column fidelity + correlation fidelity composite score
-- [ ] backend/engine/previewer.py — histogram bins, KDE, correlation matrices for /preview
+- [x] backend/engine/profiler.py — column type inference and distribution fitting
+- [x] backend/engine/sampler.py — synthetic data sampling (upload-first and agent-first paths)
+- [x] backend/engine/validator.py — constraint validation with 3-attempt regeneration loop
+- [x] backend/engine/fidelity.py — JS divergence column fidelity + correlation fidelity composite score
+- [x] backend/engine/previewer.py — histogram bins, KDE, correlation matrices for /preview
 
 ---
 
