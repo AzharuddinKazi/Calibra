@@ -26,9 +26,9 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` complete
 
 ## Phase 3 — Domain Packs
 
-- [ ] backend/domain_packs/base.py — abstract BaseDomainPack interface
-- [ ] backend/domain_packs/fraud.py — financial crime fraud detection domain pack
-- [ ] backend/domain_packs/aml.py — AML transaction monitoring domain pack
+- [x] backend/domain_packs/base.py — abstract BaseDomainPack interface
+- [x] backend/domain_packs/fraud.py — financial crime fraud detection domain pack
+- [x] backend/domain_packs/aml.py — AML transaction monitoring domain pack
 
 ---
 
@@ -122,12 +122,12 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` complete
 
 ## Phase 9 — Tests
 
-- [ ] tests/test_profiler.py — profiler unit tests ≥80% coverage
-- [ ] tests/test_sampler.py — sampler unit tests ≥80% coverage
-- [ ] tests/test_validator.py — passing row + failing row per constraint type
-- [ ] tests/test_fidelity.py — fidelity tests against known dataset with expected score range
-- [ ] tests/test_previewer.py — histogram bins, KDE shape, correlation matrix symmetry
-- [ ] tests/test_domain_packs.py — constraint pass/fail tests for fraud and AML packs
+- [x] tests/test_profiler.py — profiler unit tests ≥80% coverage
+- [x] tests/test_sampler.py — sampler unit tests ≥80% coverage
+- [x] tests/test_validator.py — passing row + failing row per constraint type
+- [x] tests/test_fidelity.py — fidelity tests against known dataset with expected score range
+- [x] tests/test_previewer.py — histogram bins, KDE shape, correlation matrix symmetry
+- [x] tests/test_domain_packs.py — constraint pass/fail tests for fraud and AML packs
 - [ ] tests/test_intelligence.py — all three LLM calls mocked; fallback degradation tests
 - [ ] tests/test_agent.py — tool handler logic mocked; no live API or engine calls
 
