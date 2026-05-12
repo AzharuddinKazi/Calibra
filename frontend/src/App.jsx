@@ -127,7 +127,8 @@ export default function App() {
 
   async function handleEntrySelect(entryPoint, mode) {
     if (entryPoint === "agent_first") {
-      await agent.startSession(mode, "agent_first");
+      const session = await agent.startSession(mode, "agent_first");
+      if (!session) return; // startSession failed — error shown inside useAgent
       setAgentMode(mode);
       setView(VIEW.AGENT_CHAT);
     } else {
@@ -291,6 +292,7 @@ export default function App() {
                 isLoading={agent.isLoading}
                 readyToGenerate={agent.readyToGenerate}
                 config={agent.config}
+                suggestions={agent.suggestions}
                 onSend={agent.sendMessage}
                 onGenerate={handleGenerate}
               />

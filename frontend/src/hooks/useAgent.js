@@ -10,6 +10,7 @@ export function useAgent() {
   const [error, setError] = useState(null);
   const [readyToGenerate, setReadyToGenerate] = useState(false);
   const [previewRunId, setPreviewRunId] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
 
   const startSession = useCallback(async (sessionMode, entryPoint, uploadSessionId = null) => {
     setIsLoading(true);
@@ -20,6 +21,7 @@ export function useAgent() {
       setMode(data.mode);
       setConfig(data.config);
       setMessages([]);
+      setSuggestions([]);
       return data;
     } catch (err) {
       setError(err.message);
@@ -30,9 +32,24 @@ export function useAgent() {
   }, []);
 
   const sendMessage = useCallback(async (text) => {
-    if (!sessionId || !text.trim()) return;
-    const userMsg = { role: "user", content: text };
+    if (!text.trim()) return;
+
+    // Always show the user's message immediately — never silently drop it.
+    const userMsg = { role: "user", content: text, timestamp: Date.now() };
     setMessages((prev) => [...prev, userMsg]);
+    setSuggestions([]); // clear chips as soon as user sends anything
+
+    if (!sessionId) {
+      const errMsg = {
+        role: "assistant",
+        content: "Session not connected. Please refresh the page and try again.",
+        timestamp: Date.now(),
+        isError: true,
+      };
+      setMessages((prev) => [...prev, errMsg]);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
@@ -41,16 +58,25 @@ export function useAgent() {
         role: "assistant",
         content: data.reply,
         toolCallsMade: data.tool_calls_made,
+        timestamp: Date.now(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
       setConfig(data.updated_config);
       setReadyToGenerate(data.ready_to_generate);
+      setSuggestions(data.suggestions || []);
       if (data.preview_run_id) {
         setPreviewRunId(data.preview_run_id);
       }
       return data;
     } catch (err) {
       setError(err.message);
+      const errMsg = {
+        role: "assistant",
+        content: `Something went wrong: ${err.message}. Please try again.`,
+        timestamp: Date.now(),
+        isError: true,
+      };
+      setMessages((prev) => [...prev, errMsg]);
       return null;
     } finally {
       setIsLoading(false);
@@ -79,6 +105,7 @@ export function useAgent() {
     error,
     readyToGenerate,
     previewRunId,
+    suggestions,
     startSession,
     sendMessage,
     switchMode,
