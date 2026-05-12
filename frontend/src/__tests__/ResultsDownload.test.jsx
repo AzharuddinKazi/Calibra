@@ -49,7 +49,7 @@ describe("ResultsDownload", () => {
 
   it("shows constraint failures message when failures > 0", () => {
     render(<ResultsDownload result={failuresResult} />);
-    expect(screen.getByText(/42 row\(s\) excluded/i)).toBeInTheDocument();
+    expect(screen.getByText(/42 rows excluded/i)).toBeInTheDocument();
   });
 
   it("does not show constraint failures message when failures == 0", () => {
