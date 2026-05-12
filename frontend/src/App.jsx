@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Separator } from "@/components/ui/separator";
 import AgentEntryPoint from "./components/agent/AgentEntryPoint";
 import AgentChat from "./components/agent/AgentChat";
 import AgentWizard from "./components/agent/AgentWizard";
@@ -18,16 +19,13 @@ import ResultsDownload from "./components/results/ResultsDownload";
 import { useAgent } from "./hooks/useAgent";
 import { useAnnotation } from "./hooks/useAnnotation";
 import { useConstraintParser } from "./hooks/useConstraintParser";
-import { generate } from "./utils/api";
-
-// ── Views ─────────────────────────────────────────────────────────────────────
+import { generate, replay } from "./utils/api";
 
 const VIEW = {
   ENTRY: "entry",
   UPLOAD: "upload",
   CONFIGURE: "configure",
   AGENT_CHAT: "agent_chat",
-  PREVIEW: "preview",
   RESULTS: "results",
 };
 
@@ -42,13 +40,10 @@ export default function App() {
   const [constraints, setConstraints] = useState([]);
   const [generationResult, setGenerationResult] = useState(null);
   const [previewRunId, setPreviewRunId] = useState(null);
-  const [acceptedAnnotations, setAcceptedAnnotations] = useState([]);
 
   const agent = useAgent();
   const annotation = useAnnotation();
   const constraintParser = useConstraintParser();
-
-  // ── Entry point selection ─────────────────────────────────────────────────
 
   async function handleEntrySelect(entryPoint, mode) {
     if (entryPoint === "agent_first") {
@@ -60,8 +55,6 @@ export default function App() {
     }
   }
 
-  // ── Upload flow ────────────────────────────────────────────────────────────
-
   async function handleUploadComplete(uploadData) {
     setSessionId(uploadData.session_id);
     setColumnProfiles([]);
@@ -69,16 +62,11 @@ export default function App() {
     annotation.annotate(uploadData.session_id);
   }
 
-  // ── Annotation ─────────────────────────────────────────────────────────────
-
   function handleAnnotationAccept(col) {
-    setAcceptedAnnotations((prev) => [...prev, col]);
-    if (annotation.result?.recommended_domain_pack) {
+    if (annotation.result?.recommended_domain_pack && annotation.result.recommended_domain_pack !== "none") {
       setDomainPack(annotation.result.recommended_domain_pack);
     }
   }
-
-  // ── Constraints ────────────────────────────────────────────────────────────
 
   async function handleConstraintParse(sid, text) {
     await constraintParser.parse(sid, text);
@@ -101,8 +89,6 @@ export default function App() {
     setConstraints((prev) => prev.filter((_, i) => i !== index));
   }
 
-  // ── Generation ─────────────────────────────────────────────────────────────
-
   async function handleGenerate(rowCount) {
     const sid = sessionId || agent.sessionId;
     if (!sid) return;
@@ -122,129 +108,108 @@ export default function App() {
     }
   }
 
-  // ── Agent generation ───────────────────────────────────────────────────────
-
-  async function handleAgentGenerate(rowCount) {
-    if (!agent.sessionId) return;
+  async function handleReplay(runId) {
     try {
-      const result = await generate({
-        session_id: agent.sessionId,
-        row_count: rowCount,
-        domain_pack: agent.config?.domain_pack || "none",
-        domain_config: {},
-        random_seed: 42,
-      });
+      const result = await replay(runId);
       setGenerationResult(result);
       setPreviewRunId(result.run_id);
-      setView(VIEW.RESULTS);
     } catch (err) {
-      alert(`Generation failed: ${err.message}`);
+      alert(`Replay failed: ${err.message}`);
     }
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-        <button
-          onClick={() => setView(VIEW.ENTRY)}
-          className="text-lg font-bold text-gray-900 hover:text-blue-600"
-        >
-          Calibra
-        </button>
-        <span className="text-xs text-gray-400">Synthetic Data Engine</span>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-14 items-center justify-between">
+          <button
+            onClick={() => setView(VIEW.ENTRY)}
+            className="flex items-center gap-2 font-semibold text-lg hover:text-primary transition-colors"
+          >
+            <span className="text-primary">◆</span> Calibra
+          </button>
+          <span className="text-xs text-muted-foreground">Synthetic Data Engine</span>
+        </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="container py-8">
 
         {/* Entry */}
         {view === VIEW.ENTRY && (
           <AgentEntryPoint onSelectMode={handleEntrySelect} />
         )}
 
-        {/* Upload flow */}
+        {/* Upload */}
         {view === VIEW.UPLOAD && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-gray-800">Upload Dataset</h2>
+          <div className="max-w-2xl mx-auto space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Upload Dataset</h2>
+              <p className="text-muted-foreground mt-1">Upload a sample CSV and Calibra will learn its statistical structure.</p>
+            </div>
             <Upload onUploadComplete={handleUploadComplete} />
           </div>
         )}
 
-        {/* Configure flow */}
+        {/* Configure */}
         {view === VIEW.CONFIGURE && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
+
               {columnProfiles.length > 0 && (
-                <section>
-                  <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">Column Profile</h3>
+                <section className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Column Profile</h3>
                   <ColumnPreviewTable profiles={columnProfiles} />
                 </section>
               )}
 
               {annotation.loading && (
-                <p className="text-sm text-gray-400 animate-pulse">Analysing your dataset…</p>
+                <p className="text-sm text-muted-foreground animate-pulse">Analysing your dataset with AI…</p>
               )}
 
               {annotation.result && !annotation.isFallback && (
-                <section>
-                  <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">Column Annotations</h3>
+                <section className="space-y-3">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">AI Column Annotations</h3>
                   <ColumnAnnotations
                     annotations={annotation.result.columns}
                     onAccept={handleAnnotationAccept}
                     onReject={() => {}}
                   />
-                  <div className="mt-4">
-                    <PrevalenceBenchmark
-                      annotation={annotation.result}
-                      onApply={setPrevalence}
-                    />
-                  </div>
+                  <PrevalenceBenchmark annotation={annotation.result} onApply={setPrevalence} />
                 </section>
               )}
 
-              <section>
-                <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">Domain Configuration</h3>
+              <Separator />
+
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Domain Configuration</h3>
                 <DomainConfig
                   domainPack={domainPack}
                   typologies={typologies}
-                  onChange={({ domainPack: dp, typologies: t }) => {
-                    setDomainPack(dp);
-                    setTypologies(t);
-                  }}
+                  onChange={({ domainPack: dp, typologies: t }) => { setDomainPack(dp); setTypologies(t); }}
                 />
               </section>
 
-              <section>
-                <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">Prevalence</h3>
-                <PrevalenceSlider
-                  domainPack={domainPack}
-                  prevalence={prevalence}
-                  onChange={setPrevalence}
-                />
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Prevalence Targets</h3>
+                <PrevalenceSlider domainPack={domainPack} prevalence={prevalence} onChange={setPrevalence} />
               </section>
 
-              <section>
-                <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">Constraints</h3>
-                <div className="space-y-3">
-                  <ConstraintInput
-                    sessionId={sessionId}
-                    onParse={handleConstraintParse}
-                    loading={constraintParser.loading}
-                  />
-                  {constraintParser.parsed && (
-                    <ConstraintReview
-                      parsed={constraintParser.parsed}
-                      onConfirm={handleConstraintConfirm}
-                      onDiscard={constraintParser.discard}
-                    />
-                  )}
-                  <ConstraintList constraints={constraints} onDelete={handleConstraintDelete} />
-                </div>
+              <Separator />
+
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Constraints</h3>
+                <ConstraintInput sessionId={sessionId} onParse={handleConstraintParse} loading={constraintParser.loading} />
+                {constraintParser.parsed && (
+                  <ConstraintReview parsed={constraintParser.parsed} onConfirm={handleConstraintConfirm} onDiscard={constraintParser.discard} />
+                )}
+                <ConstraintList constraints={constraints} onDelete={handleConstraintDelete} />
               </section>
 
-              <section>
-                <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">Generate</h3>
+              <Separator />
+
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Generate</h3>
                 <GenerationPanel
                   sessionId={sessionId}
                   domainPack={domainPack}
@@ -259,12 +224,19 @@ export default function App() {
             </div>
 
             <aside className="space-y-4">
-              <div className="border border-gray-200 rounded-xl bg-white p-4">
-                <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Summary</h3>
-                <div className="text-xs text-gray-600 space-y-1">
-                  <div className="flex justify-between"><span>Domain Pack</span><span className="font-medium capitalize">{domainPack}</span></div>
-                  <div className="flex justify-between"><span>Constraints</span><span className="font-medium">{constraints.length}</span></div>
-                  <div className="flex justify-between"><span>Typologies</span><span className="font-medium">{typologies.length}</span></div>
+              <div className="sticky top-20 space-y-4">
+                <div className="rounded-lg border bg-card p-4 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Session Summary</p>
+                  {[
+                    ["Domain Pack", domainPack !== "none" ? domainPack : null],
+                    ["Typologies", typologies.length ? typologies.join(", ") : null],
+                    ["Constraints", constraints.length ? `${constraints.length} active` : null],
+                  ].map(([label, val]) => (
+                    <div key={label} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className={val ? "font-medium" : "text-muted-foreground italic"}>{val || "not set"}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </aside>
@@ -273,23 +245,19 @@ export default function App() {
 
         {/* Agent chat/wizard */}
         {view === VIEW.AGENT_CHAT && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-120px)]">
-            <div className="lg:col-span-2 flex flex-col border border-gray-200 rounded-xl bg-white overflow-hidden">
-              <div className="border-b border-gray-200 px-4 py-2 flex items-center gap-2">
-                <button
-                  onClick={() => setAgentMode("chat")}
-                  className={`text-xs px-3 py-1 rounded-full ${agentMode === "chat" ? "bg-blue-100 text-blue-700" : "text-gray-500 hover:text-gray-700"}`}
-                >
-                  Chat
-                </button>
-                <button
-                  onClick={() => { setAgentMode("wizard"); agent.switchMode("wizard"); }}
-                  className={`text-xs px-3 py-1 rounded-full ${agentMode === "wizard" ? "bg-blue-100 text-blue-700" : "text-gray-500 hover:text-gray-700"}`}
-                >
-                  Wizard
-                </button>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-6rem)]">
+            <div className="lg:col-span-2 flex flex-col rounded-lg border bg-card overflow-hidden">
+              <div className="border-b px-4 py-2 flex items-center gap-2">
+                {["chat", "wizard"].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => { setAgentMode(m); agent.switchMode(m); }}
+                    className={`text-xs px-3 py-1 rounded-full capitalize transition-colors ${agentMode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {m}
+                  </button>
+                ))}
               </div>
-
               {agentMode === "chat" ? (
                 <AgentChat
                   messages={agent.messages}
@@ -297,7 +265,7 @@ export default function App() {
                   readyToGenerate={agent.readyToGenerate}
                   config={agent.config}
                   onSend={agent.sendMessage}
-                  onGenerate={handleAgentGenerate}
+                  onGenerate={handleGenerate}
                 />
               ) : (
                 <AgentWizard
@@ -306,11 +274,10 @@ export default function App() {
                   readyToGenerate={agent.readyToGenerate}
                   config={agent.config}
                   onSend={agent.sendMessage}
-                  onGenerate={handleAgentGenerate}
+                  onGenerate={handleGenerate}
                 />
               )}
             </div>
-
             <aside>
               <ConfigSummaryPanel config={agent.config} />
             </aside>
@@ -320,19 +287,11 @@ export default function App() {
         {/* Results */}
         {view === VIEW.RESULTS && (
           <div className="space-y-10">
-            <ResultsDownload
-              result={generationResult}
-              onReplay={(rid) => {
-                const { replay } = require("./utils/api");
-                replay(rid).then((r) => {
-                  setGenerationResult(r);
-                  setPreviewRunId(r.run_id);
-                });
-              }}
-            />
+            <ResultsDownload result={generationResult} onReplay={handleReplay} />
             {previewRunId && (
-              <section>
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Data Preview</h2>
+              <section className="space-y-4">
+                <Separator />
+                <h2 className="text-xl font-semibold tracking-tight">Data Preview</h2>
                 <DataPreview runId={previewRunId} />
               </section>
             )}

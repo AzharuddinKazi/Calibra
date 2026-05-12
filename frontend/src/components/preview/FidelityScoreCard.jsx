@@ -1,35 +1,39 @@
-function Score({ label, value, large = false }) {
-  const color = value >= 0.8 ? "green" : value >= 0.75 ? "yellow" : "red";
-  const colorClasses = {
-    green: { bg: "bg-green-50", text: "text-green-700", badge: "text-green-800" },
-    yellow: { bg: "bg-yellow-50", text: "text-yellow-700", badge: "text-yellow-800" },
-    red: { bg: "bg-red-50", text: "text-red-700", badge: "text-red-800" },
-  };
-  const labels = {
-    green: "Good",
-    yellow: "Acceptable",
-    red: "Below threshold",
-  };
-  const c = colorClasses[color];
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
+function scoreVariant(v) {
+  if (v >= 0.8) return "success";
+  if (v >= 0.75) return "warning";
+  return "destructive";
+}
+
+function scoreLabel(v) {
+  if (v >= 0.8) return "Good";
+  if (v >= 0.75) return "Acceptable";
+  return "Below threshold";
+}
+
+function ScoreCard({ label, value, large }) {
   return (
-    <div className={`${c.bg} rounded-xl p-4 flex flex-col`}>
-      <span className="text-xs text-gray-500 mb-1">{label}</span>
-      <span className={`font-bold ${large ? "text-3xl" : "text-xl"} ${c.text}`}>
-        {(value * 100).toFixed(1)}%
-      </span>
-      <span className={`text-xs mt-1 font-medium ${c.badge}`}>{labels[color]}</span>
-    </div>
+    <Card>
+      <CardContent className="pt-4 pb-4 space-y-1">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className={`font-bold tabular-nums ${large ? "text-3xl" : "text-xl"}`}>
+          {(value * 100).toFixed(1)}%
+        </p>
+        <Badge variant={scoreVariant(value)} className="text-xs">{scoreLabel(value)}</Badge>
+      </CardContent>
+    </Card>
   );
 }
 
 export default function FidelityScoreCard({ fidelity }) {
   if (!fidelity) return null;
   return (
-    <div className="grid grid-cols-3 gap-4 mb-6">
-      <Score label="Composite Score" value={fidelity.composite} large />
-      <Score label="Column Fidelity" value={fidelity.column_fidelity} />
-      <Score label="Correlation Fidelity" value={fidelity.correlation_fidelity} />
+    <div className="grid grid-cols-3 gap-4">
+      <ScoreCard label="Composite Score" value={fidelity.composite} large />
+      <ScoreCard label="Column Fidelity" value={fidelity.column_fidelity} />
+      <ScoreCard label="Correlation Fidelity" value={fidelity.correlation_fidelity} />
     </div>
   );
 }

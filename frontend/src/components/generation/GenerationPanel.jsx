@@ -1,4 +1,11 @@
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Zap } from "lucide-react";
+import { generate } from "../../utils/api";
 
 export default function GenerationPanel({ sessionId, domainPack, domainConfig, onGenerated }) {
   const [rowCount, setRowCount] = useState(10000);
@@ -10,7 +17,6 @@ export default function GenerationPanel({ sessionId, domainPack, domainConfig, o
     setLoading(true);
     setError(null);
     try {
-      const { generate } = await import("../../utils/api");
       const data = await generate({
         session_id: sessionId,
         row_count: rowCount,
@@ -27,28 +33,39 @@ export default function GenerationPanel({ sessionId, domainPack, domainConfig, o
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Number of Rows</label>
-        <input
-          type="number"
-          min="100"
-          max="1000000"
-          value={rowCount}
-          onChange={(e) => setRowCount(Number(e.target.value))}
-          className="w-40 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
-      </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Generate Dataset</CardTitle>
+        <CardDescription>Configure the output size and trigger generation.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="row-count">Number of rows</Label>
+          <div className="flex items-center gap-3">
+            <Input
+              id="row-count"
+              type="number"
+              min={100}
+              max={1000000}
+              value={rowCount}
+              onChange={(e) => setRowCount(Number(e.target.value))}
+              className="w-40"
+            />
+            <span className="text-sm text-muted-foreground">rows</span>
+          </div>
+        </div>
 
-      <button
-        onClick={handleGenerate}
-        disabled={loading || !sessionId}
-        className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {loading ? "Generating…" : "Generate Dataset"}
-      </button>
+        <Button onClick={handleGenerate} disabled={loading || !sessionId} className="w-full sm:w-auto">
+          <Zap className="mr-2 h-4 w-4" />
+          {loading ? "Generating…" : "Generate Dataset"}
+        </Button>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-    </div>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
+    </Card>
   );
 }

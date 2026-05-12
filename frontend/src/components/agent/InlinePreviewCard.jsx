@@ -1,18 +1,12 @@
 import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { getPreview } from "../../utils/api";
 
 function FidelityBadge({ score }) {
-  const color = score >= 0.8 ? "green" : score >= 0.75 ? "yellow" : "red";
-  const classes = {
-    green: "bg-green-100 text-green-800",
-    yellow: "bg-yellow-100 text-yellow-800",
-    red: "bg-red-100 text-red-800",
-  };
-  return (
-    <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${classes[color]}`}>
-      Fidelity: {(score * 100).toFixed(0)}%
-    </span>
-  );
+  const variant = score >= 0.8 ? "success" : score >= 0.75 ? "warning" : "destructive";
+  return <Badge variant={variant}>Fidelity: {(score * 100).toFixed(0)}%</Badge>;
 }
 
 export default function InlinePreviewCard({ runId, onViewFull }) {
@@ -28,56 +22,50 @@ export default function InlinePreviewCard({ runId, onViewFull }) {
       .finally(() => setLoading(false));
   }, [runId]);
 
-  if (loading) return <div className="text-xs text-gray-400 animate-pulse">Loading preview…</div>;
-  if (error) return <div className="text-xs text-red-500">Preview unavailable.</div>;
+  if (loading) return <div className="text-xs text-muted-foreground animate-pulse py-2">Loading preview…</div>;
+  if (error) return <div className="text-xs text-destructive">Preview unavailable.</div>;
   if (!preview) return null;
 
   const sampleRows = (preview.sample_rows || []).slice(0, 5);
   const cols = sampleRows.length > 0 ? Object.keys(sampleRows[0]).slice(0, 4) : [];
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3 text-sm">
-      <div className="flex items-center justify-between">
+    <Card className="border-muted">
+      <CardHeader className="py-3 px-4 flex-row items-center justify-between space-y-0">
         <FidelityBadge score={preview.fidelity.composite} />
-        <button onClick={() => onViewFull(runId)} className="text-xs text-blue-600 hover:underline">
+        <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => onViewFull?.(runId)}>
           View full preview →
-        </button>
-      </div>
-
-      {preview.prevalence && (
-        <div className="flex gap-3">
-          {Object.entries(preview.prevalence.actual || {}).map(([cls, val]) => (
-            <div key={cls} className="text-xs text-gray-600">
-              <span className="capitalize">{cls.replace("_", " ")}</span>: {(val * 100).toFixed(2)}%
-            </div>
-          ))}
-        </div>
-      )}
-
-      {sampleRows.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="text-xs w-full">
-            <thead>
-              <tr>
-                {cols.map((c) => (
-                  <th key={c} className="text-left text-gray-500 pr-4 pb-1 font-normal">
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sampleRows.map((row, i) => (
-                <tr key={i}>
-                  {cols.map((c) => (
-                    <td key={c} className="text-gray-700 pr-4 py-0.5">{String(row[c])}</td>
-                  ))}
+        </Button>
+      </CardHeader>
+      <CardContent className="px-4 pb-4 space-y-3">
+        {preview.prevalence && (
+          <div className="flex gap-3">
+            {Object.entries(preview.prevalence.actual || {}).map(([cls, val]) => (
+              <span key={cls} className="text-xs text-muted-foreground">
+                <span className="capitalize">{cls.replace("_", " ")}</span>: {(val * 100).toFixed(2)}%
+              </span>
+            ))}
+          </div>
+        )}
+        {sampleRows.length > 0 && (
+          <div className="overflow-x-auto rounded border">
+            <table className="text-xs w-full">
+              <thead className="bg-muted">
+                <tr>
+                  {cols.map((c) => <th key={c} className="text-left px-3 py-1.5 font-medium text-muted-foreground">{c}</th>)}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+              </thead>
+              <tbody>
+                {sampleRows.map((row, i) => (
+                  <tr key={i} className="border-t">
+                    {cols.map((c) => <td key={c} className="px-3 py-1.5">{String(row[c])}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

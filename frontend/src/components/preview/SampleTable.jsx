@@ -1,57 +1,44 @@
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 export default function SampleTable({ rows }) {
-  if (!rows || rows.length === 0) {
-    return <p className="text-sm text-gray-500">No sample data available.</p>;
-  }
+  if (!rows?.length) return <p className="text-sm text-muted-foreground">No sample data available.</p>;
 
   const columns = Object.keys(rows[0]);
-  const labelCols = columns.filter((c) => /fraud|sar|label|is_fraud/i.test(c));
+  const labelCols = columns.filter((c) => /^(is_fraud|fraud|sar|label)$/i.test(c));
+  const isNum = (col) => rows.some((r) => typeof r[col] === "number");
 
   function renderCell(col, val) {
     if (labelCols.includes(col)) {
-      const isPositive = val === 1 || val === true || val === "1";
-      return (
-        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-          isPositive ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
-        }`}>
-          {String(val)}
-        </span>
-      );
+      const positive = val === 1 || val === true || val === "1";
+      return <Badge variant={positive ? "destructive" : "success"}>{String(val)}</Badge>;
     }
-    return <span className="text-gray-700">{String(val)}</span>;
+    return String(val);
   }
 
-  const isNumeric = (col) => rows.some((r) => typeof r[col] === "number");
-
   return (
-    <div className="overflow-auto max-h-[400px] rounded-lg border border-gray-200">
-      <table className="min-w-full text-xs">
-        <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
-          <tr>
+    <ScrollArea className="h-[400px] rounded-lg border">
+      <Table>
+        <TableHeader>
+          <TableRow>
             {columns.map((c) => (
-              <th
-                key={c}
-                className={`px-3 py-2 font-semibold text-gray-600 whitespace-nowrap ${isNumeric(c) ? "text-right" : "text-left"}`}
-              >
-                {c}
-              </th>
+              <TableHead key={c} className={isNum(c) ? "text-right" : ""}>{c}</TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {rows.map((row, i) => (
-            <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+            <TableRow key={i}>
               {columns.map((col) => (
-                <td
-                  key={col}
-                  className={`px-3 py-2 whitespace-nowrap ${isNumeric(col) ? "text-right font-mono" : "text-left"}`}
-                >
+                <TableCell key={col} className={`${isNum(col) ? "text-right font-mono text-xs" : ""}`}>
                   {renderCell(col, row[col])}
-                </td>
+                </TableCell>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </Table>
+    </ScrollArea>
   );
 }

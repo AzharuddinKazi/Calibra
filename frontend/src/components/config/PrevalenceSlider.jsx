@@ -1,43 +1,38 @@
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+
 export default function PrevalenceSlider({ domainPack, prevalence, onChange }) {
   if (!domainPack || domainPack === "none") return null;
 
-  const classes = domainPack === "fraud"
-    ? ["fraud", "non_fraud"]
-    : ["sar", "non_sar"];
+  const classes = domainPack === "fraud" ? ["fraud", "non_fraud"] : ["sar", "non_sar"];
+  const current = prevalence || { [classes[0]]: 0.02, [classes[1]]: 0.98 };
+  const minorClass = classes[0];
+  const minorVal = (current[minorClass] || 0) * 100;
 
-  const current = prevalence || Object.fromEntries(classes.map((c, i) => [c, i === 0 ? 0.02 : 0.98]));
-
-  function handleChange(cls, value) {
-    const floatVal = Math.min(1, Math.max(0, parseFloat(value) / 100));
-    const other = classes.find((c) => c !== cls);
-    onChange({ ...current, [cls]: floatVal, [other]: parseFloat((1 - floatVal).toFixed(6)) });
+  function handleChange([val]) {
+    const floatVal = val / 100;
+    const other = classes[1];
+    onChange({ [minorClass]: parseFloat(floatVal.toFixed(6)), [other]: parseFloat((1 - floatVal).toFixed(6)) });
   }
 
-  const minorityClass = classes[0];
-  const minorVal = (current[minorityClass] || 0) * 100;
-
   return (
-    <div className="space-y-3">
-      <label className="block text-sm font-medium text-gray-700">
-        Prevalence — {minorityClass.replace("_", " ")} rate
-      </label>
-      <div className="flex items-center gap-4">
-        <input
-          type="range"
-          min="0.1"
-          max="20"
-          step="0.1"
-          value={minorVal}
-          onChange={(e) => handleChange(minorityClass, e.target.value)}
-          className="flex-1"
-        />
-        <span className="text-sm font-mono w-16 text-right">{minorVal.toFixed(1)}%</span>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Label className="capitalize">{minorClass.replace("_", " ")} rate</Label>
+        <span className="text-sm font-mono font-medium">{minorVal.toFixed(2)}%</span>
       </div>
-      <div className="text-xs text-gray-500 space-y-0.5">
+      <Slider
+        min={0.1}
+        max={20}
+        step={0.1}
+        value={[minorVal]}
+        onValueChange={handleChange}
+      />
+      <div className="grid grid-cols-2 gap-2">
         {classes.map((cls) => (
-          <div key={cls} className="flex justify-between">
+          <div key={cls} className="flex justify-between text-xs text-muted-foreground rounded border px-3 py-2">
             <span className="capitalize">{cls.replace("_", " ")}</span>
-            <span>{((current[cls] || 0) * 100).toFixed(2)}%</span>
+            <span className="font-mono">{((current[cls] || 0) * 100).toFixed(2)}%</span>
           </div>
         ))}
       </div>

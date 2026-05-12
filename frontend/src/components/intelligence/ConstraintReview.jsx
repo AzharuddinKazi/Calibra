@@ -1,3 +1,8 @@
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+
 export default function ConstraintReview({ parsed, onConfirm, onDiscard }) {
   if (!parsed) return null;
 
@@ -5,44 +10,39 @@ export default function ConstraintReview({ parsed, onConfirm, onDiscard }) {
 
   if (!constraint || !constraint.parseable) {
     return (
-      <div className="border border-red-200 rounded-lg p-4 bg-red-50">
-        <p className="text-sm text-red-700">
-          {message || constraint?.parse_error || "Could not parse constraint."}
-        </p>
-        <button
-          onClick={onDiscard}
-          className="mt-2 px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-        >
-          Dismiss
-        </button>
-      </div>
+      <Alert variant="destructive">
+        <XCircle className="h-4 w-4" />
+        <AlertTitle>Could not parse constraint</AlertTitle>
+        <AlertDescription className="mt-2 space-y-2">
+          <p>{message || constraint?.parse_error}</p>
+          <Button size="sm" variant="outline" onClick={onDiscard}>Dismiss</Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 
-  const isLowConfidence = constraint.confidence === "low";
+  const isLow = constraint.confidence === "low";
+  const variant = isLow ? "warning" : "success";
 
   return (
-    <div className={`border rounded-lg p-4 ${isLowConfidence ? "border-yellow-300 bg-yellow-50" : "border-green-200 bg-green-50"}`}>
-      <p className="text-sm font-medium text-gray-800">{readable_summary}</p>
-      {isLowConfidence && (
-        <p className="mt-1 text-xs text-yellow-700">
-          We made some assumptions — please review before confirming.
-        </p>
-      )}
-      <div className="mt-3 flex gap-2">
-        <button
-          onClick={onConfirm}
-          className={`px-3 py-1 text-xs text-white rounded ${isLowConfidence ? "bg-yellow-600 hover:bg-yellow-700" : "bg-green-600 hover:bg-green-700"}`}
-        >
-          Confirm
-        </button>
-        <button
-          onClick={onDiscard}
-          className="px-3 py-1 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300"
-        >
-          Discard
-        </button>
-      </div>
-    </div>
+    <Alert variant={variant}>
+      {isLow ? <AlertTriangle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+      <AlertTitle className="flex items-center gap-2">
+        Parsed Constraint
+        <Badge variant={isLow ? "warning" : "success"} className="text-xs">
+          {constraint.confidence} confidence
+        </Badge>
+      </AlertTitle>
+      <AlertDescription className="mt-2 space-y-3">
+        <p className="font-medium">{readable_summary}</p>
+        {isLow && (
+          <p className="text-sm">We made some assumptions — please review before confirming.</p>
+        )}
+        <div className="flex gap-2">
+          <Button size="sm" onClick={onConfirm}>Confirm</Button>
+          <Button size="sm" variant="outline" onClick={onDiscard}>Discard</Button>
+        </div>
+      </AlertDescription>
+    </Alert>
   );
 }
