@@ -34,11 +34,11 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` complete
 
 ## Phase 4 — Intelligence Layer
 
-- [ ] backend/intelligence/client.py — shared Anthropic LLM client (singleton, call_llm, load_prompt)
-- [ ] backend/intelligence/prompts/ — three versioned prompt files (annotate_columns_v1, parse_constraints_v1, summarise_report_v1)
-- [ ] backend/intelligence/annotator.py — LLM Call 1: column semantic annotation + domain pack suggestion
-- [ ] backend/intelligence/constraint_parser.py — LLM Call 2: natural language → formal constraint schema
-- [ ] backend/intelligence/report_summariser.py — LLM Call 3: plain-English audit report summary
+- [x] backend/intelligence/client.py — shared Anthropic LLM client (singleton, call_llm, load_prompt)
+- [x] backend/intelligence/prompts/ — three versioned prompt files (annotate_columns_v1, parse_constraints_v1, summarise_report_v1)
+- [x] backend/intelligence/annotator.py — LLM Call 1: column semantic annotation + domain pack suggestion
+- [x] backend/intelligence/constraint_parser.py — LLM Call 2: natural language → formal constraint schema
+- [x] backend/intelligence/report_summariser.py — LLM Call 3: plain-English audit report summary
 
 ---
 
@@ -128,7 +128,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` complete
 - [x] tests/test_fidelity.py — fidelity tests against known dataset with expected score range
 - [x] tests/test_previewer.py — histogram bins, KDE shape, correlation matrix symmetry
 - [x] tests/test_domain_packs.py — constraint pass/fail tests for fraud and AML packs
-- [ ] tests/test_intelligence.py — all three LLM calls mocked; fallback degradation tests
+- [x] tests/test_intelligence.py — all three LLM calls mocked; fallback degradation tests
 - [ ] tests/test_agent.py — tool handler logic mocked; no live API or engine calls
 
 ---
