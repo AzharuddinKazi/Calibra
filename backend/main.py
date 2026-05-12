@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.routers import agent, auth, generation, intelligence, preview
+from backend.routers import agent, auth, generation, intelligence, preview, test_endpoints
 from backend.session.store import sweep_expired
 
 logger = logging.getLogger(__name__)
@@ -84,6 +84,7 @@ app.include_router(generation.router)
 app.include_router(intelligence.router)
 app.include_router(preview.router)
 app.include_router(agent.router)
+app.include_router(test_endpoints.router)
 
 
 # ── Health check ───────────────────────────────────────────────────────────────
