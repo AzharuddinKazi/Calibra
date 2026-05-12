@@ -24,7 +24,7 @@ class ColumnProfile(BaseModel):
     name: str
     col_type: Literal["continuous", "categorical", "datetime", "boolean", "id"]
     distribution: Literal["normal", "lognormal", "uniform", "exponential", "categorical"] | None = None
-    distribution_params: dict[str, float] = Field(default_factory=dict)
+    distribution_params: dict[str, Any] = Field(default_factory=dict)
     stats: ColumnStats
 
 
