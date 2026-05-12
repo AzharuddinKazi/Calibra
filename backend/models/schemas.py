@@ -28,6 +28,13 @@ class ColumnProfile(BaseModel):
     stats: ColumnStats
 
 
+# ── Distribution override ──────────────────────────────────────────────────────
+
+class DistributionOverride(BaseModel):
+    distribution: Literal["normal", "lognormal", "uniform", "exponential", "categorical"] | None = None
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
 # ── Constraints ────────────────────────────────────────────────────────────────
 
 class Constraint(BaseModel):
@@ -112,6 +119,7 @@ class GenerateRequest(BaseModel):
     domain_pack: Literal["fraud", "aml", "none"] = "none"
     domain_config: dict[str, Any] = Field(default_factory=dict)
     random_seed: int = 42
+    distribution_overrides: dict[str, "DistributionOverride"] = Field(default_factory=dict)
 
 
 class GenerateResponse(BaseModel):

@@ -139,7 +139,12 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
     # Sample synthetic data
     try:
         if session.column_profile:
-            synthetic_df = sample_from_profile(session.column_profile, req.row_count, rng)
+            synthetic_df = sample_from_profile(
+                session.column_profile,
+                req.row_count,
+                rng,
+                distribution_overrides=req.distribution_overrides or {},
+            )
         else:
             from backend.models.schemas import GenerationConfig
             gen_config = GenerationConfig(
@@ -156,7 +161,9 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
 
     # Validate constraints
     def resample_row(_row: dict[str, Any]) -> dict[str, Any] | None:
-        mini_df = sample_from_profile(session.column_profile, 1, rng)
+        mini_df = sample_from_profile(
+            session.column_profile, 1, rng, distribution_overrides=req.distribution_overrides or {}
+        )
         return mini_df.iloc[0].to_dict() if not mini_df.empty else None
 
     validated_df, constraint_failures = validate_dataframe(

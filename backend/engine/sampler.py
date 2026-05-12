@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from backend.models.schemas import ColumnProfile, ColumnSpec, GenerationConfig
+from backend.models.schemas import ColumnProfile, ColumnSpec, DistributionOverride, GenerationConfig
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +25,25 @@ def sample_from_profile(
     profiles: list[ColumnProfile],
     n_rows: int,
     rng: np.random.Generator,
+    distribution_overrides: dict[str, DistributionOverride] | None = None,
 ) -> pd.DataFrame:
     """Generate *n_rows* rows from fitted column profiles using a Gaussian Copula.
 
     Continuous and boolean columns are sampled jointly through a Gaussian Copula
     to preserve inter-column correlations.  Categorical and datetime columns are
     sampled independently then merged in.
+
+    Args:
+        profiles: Fitted column profiles from the profiler.
+        n_rows: Number of rows to generate.
+        rng: Seeded random number generator.
+        distribution_overrides: Optional per-column distribution overrides.
     """
-    continuous_cols = [p for p in profiles if p.col_type in ("continuous", "boolean")]
-    other_cols = [p for p in profiles if p.col_type not in ("continuous", "boolean")]
+    overrides = distribution_overrides or {}
+    effective_profiles = _apply_overrides(profiles, overrides)
+
+    continuous_cols = [p for p in effective_profiles if p.col_type in ("continuous", "boolean")]
+    other_cols = [p for p in effective_profiles if p.col_type not in ("continuous", "boolean")]
 
     df = pd.DataFrame(index=range(n_rows))
 
@@ -48,9 +58,44 @@ def sample_from_profile(
         elif profile.col_type == "id":
             df[profile.name] = [str(i).zfill(8) for i in range(n_rows)]
 
-    # Restore original column order
-    ordered = [p.name for p in profiles if p.name in df.columns]
+    ordered = [p.name for p in effective_profiles if p.name in df.columns]
     return df[ordered]
+
+
+def _apply_overrides(
+    profiles: list[ColumnProfile],
+    overrides: dict[str, DistributionOverride],
+) -> list[ColumnProfile]:
+    """Return a new list of profiles with any overrides applied."""
+    if not overrides:
+        return profiles
+
+    result: list[ColumnProfile] = []
+    for profile in profiles:
+        override = overrides.get(profile.name)
+        if override is None:
+            result.append(profile)
+            continue
+
+        new_distribution = override.distribution if override.distribution is not None else profile.distribution
+        new_params: dict = dict(profile.distribution_params)
+
+        if override.params:
+            if profile.col_type == "categorical" and "frequencies" in override.params:
+                new_params = {"frequencies": override.params["frequencies"]}
+            else:
+                new_params.update(override.params)
+
+        result.append(
+            ColumnProfile(
+                name=profile.name,
+                col_type=profile.col_type,
+                distribution=new_distribution,
+                distribution_params=new_params,
+                stats=profile.stats,
+            )
+        )
+    return result
 
 
 def sample_from_schema(
