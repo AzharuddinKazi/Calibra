@@ -70,47 +70,59 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` complete
 
 ## Phase 8 — Frontend
 
+### Project Setup (new)
+- [ ] frontend/package.json — dependencies: react, vite, tailwind, shadcn, recharts
+- [ ] frontend/index.html — Vite entry point with root div
+- [ ] frontend/vite.config.js — Vite + React plugin config
+- [ ] frontend/tailwind.config.js — Tailwind content paths
+- [ ] frontend/postcss.config.js — PostCSS with Tailwind and autoprefixer
+- [ ] frontend/src/index.css — Tailwind directives + shadcn CSS variables
+- [ ] frontend/src/main.jsx — React DOM root mount
+- [ ] frontend/components.json — shadcn/ui config
+- [ ] frontend/src/lib/utils.js — shadcn cn() utility
+- [ ] Install shadcn components: Button, Card, Badge, Input, Select, Slider, Tabs, Table, Dialog, Progress, Separator, Label, Tooltip
+
 ### Utilities & App Shell
 - [x] frontend/src/utils/api.js — all fetch calls centralised (no fetch elsewhere)
-- [x] frontend/src/App.jsx — top-level routing and layout
+- [ ] frontend/src/App.jsx — rewrite using shadcn layout, fix require() bug, add react-router
 
 ### Upload Flow
-- [x] frontend/src/components/upload/Upload.jsx — CSV drop zone, file validation, upload trigger
-- [x] frontend/src/components/upload/ColumnPreviewTable.jsx — raw column profile display post-upload
+- [ ] frontend/src/components/upload/Upload.jsx — rewrite with shadcn Card, drag-drop zone
+- [ ] frontend/src/components/upload/ColumnPreviewTable.jsx — rewrite with shadcn Table
 
 ### Intelligence Components
-- [x] frontend/src/components/intelligence/ColumnAnnotations.jsx — LLM suggestions per column with accept/edit/reject
-- [x] frontend/src/components/intelligence/ConstraintInput.jsx — free-text NL constraint input triggering Call 2
-- [x] frontend/src/components/intelligence/ConstraintReview.jsx — parsed constraint review with confirm/discard
-- [x] frontend/src/components/intelligence/PrevalenceBenchmark.jsx — LLM-suggested prevalence range pre-filling slider
+- [ ] frontend/src/components/intelligence/ColumnAnnotations.jsx — rewrite with shadcn Card + Badge + Input
+- [ ] frontend/src/components/intelligence/ConstraintInput.jsx — rewrite with shadcn Input + Button
+- [ ] frontend/src/components/intelligence/ConstraintReview.jsx — rewrite with shadcn Card + Badge
+- [ ] frontend/src/components/intelligence/PrevalenceBenchmark.jsx — rewrite with shadcn Card
 
 ### Config Components
-- [x] frontend/src/components/config/DomainConfig.jsx — domain pack selection + typology checkboxes
-- [x] frontend/src/components/config/ConstraintList.jsx — active confirmed constraints with edit/delete
-- [x] frontend/src/components/config/PrevalenceSlider.jsx — manual prevalence target input per class
+- [ ] frontend/src/components/config/DomainConfig.jsx — rewrite with shadcn Button group + Badge
+- [ ] frontend/src/components/config/ConstraintList.jsx — rewrite with shadcn Card + Badge + Button
+- [ ] frontend/src/components/config/PrevalenceSlider.jsx — rewrite with shadcn Slider + Label
 
 ### Generation
-- [x] frontend/src/components/generation/GenerationPanel.jsx — row count input, generate button, async status polling
+- [ ] frontend/src/components/generation/GenerationPanel.jsx — rewrite with shadcn Card + Input + Button
 
 ### Agent Components
-- [x] frontend/src/components/agent/AgentEntryPoint.jsx — landing choice: chat vs upload
-- [x] frontend/src/components/agent/AgentChat.jsx — message thread, config update badges, ConfirmGenerate pin
-- [x] frontend/src/components/agent/AgentWizard.jsx — step-by-step wizard mode driven by agent state
-- [x] frontend/src/components/agent/WizardStep.jsx — single wizard step with adaptive input controls
-- [x] frontend/src/components/agent/ConfigSummaryPanel.jsx — live sidebar with amber indicators for unset fields
-- [x] frontend/src/components/agent/InlinePreviewCard.jsx — compact in-chat preview after run_preview tool
-- [x] frontend/src/components/agent/ConfirmGenerate.jsx — row count input + generate button
+- [ ] frontend/src/components/agent/AgentEntryPoint.jsx — rewrite with shadcn Card layout
+- [ ] frontend/src/components/agent/AgentChat.jsx — rewrite with shadcn ScrollArea + Input + Button
+- [ ] frontend/src/components/agent/AgentWizard.jsx — rewrite with shadcn Card + Progress
+- [ ] frontend/src/components/agent/WizardStep.jsx — rewrite with shadcn Card + adaptive inputs
+- [ ] frontend/src/components/agent/ConfigSummaryPanel.jsx — rewrite with shadcn Card + Badge
+- [ ] frontend/src/components/agent/InlinePreviewCard.jsx — rewrite with shadcn Card + Badge
+- [ ] frontend/src/components/agent/ConfirmGenerate.jsx — rewrite with shadcn Card + Input + Button
 
 ### Preview Components
-- [x] frontend/src/components/preview/DataPreview.jsx — tab container fetching /preview/{run_id}
-- [x] frontend/src/components/preview/FidelityScoreCard.jsx — composite, column, correlation scores with colour coding
-- [x] frontend/src/components/preview/DistributionChart.jsx — real vs synthetic histogram + KDE overlay (Recharts)
-- [x] frontend/src/components/preview/CorrelationHeatmap.jsx — real vs synthetic heatmaps side by side
-- [x] frontend/src/components/preview/PrevalenceBar.jsx — target vs actual grouped bar chart
-- [x] frontend/src/components/preview/SampleTable.jsx — first 50 rows scrollable table with fraud label badges
+- [ ] frontend/src/components/preview/DataPreview.jsx — rewrite with shadcn Tabs + Card
+- [ ] frontend/src/components/preview/FidelityScoreCard.jsx — rewrite with shadcn Card + Badge
+- [ ] frontend/src/components/preview/DistributionChart.jsx — keep Recharts, wrap in shadcn Card
+- [ ] frontend/src/components/preview/CorrelationHeatmap.jsx — wrap in shadcn Card
+- [ ] frontend/src/components/preview/PrevalenceBar.jsx — keep Recharts, wrap in shadcn Card
+- [ ] frontend/src/components/preview/SampleTable.jsx — rewrite with shadcn Table + Badge
 
 ### Results
-- [x] frontend/src/components/results/ResultsDownload.jsx — ZIP download, report link, run ID display
+- [ ] frontend/src/components/results/ResultsDownload.jsx — rewrite with shadcn Card + Button
 
 ### Hooks
 - [x] frontend/src/hooks/useGeneration.js — generation state, polling, run_id management

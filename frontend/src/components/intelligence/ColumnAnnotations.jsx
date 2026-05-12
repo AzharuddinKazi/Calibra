@@ -1,56 +1,52 @@
 import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
-export default function ColumnAnnotations({ annotations, onAccept, onEdit, onReject }) {
-  const [editStates, setEditStates] = useState({});
+export default function ColumnAnnotations({ annotations, onAccept, onReject }) {
+  const [edits, setEdits] = useState({});
 
-  if (!annotations || annotations.length === 0) return null;
+  if (!annotations?.length) return null;
 
-  function handleEdit(name, field, value) {
-    setEditStates((prev) => ({
-      ...prev,
-      [name]: { ...prev[name], [field]: value },
-    }));
+  function handleEdit(name, value) {
+    setEdits((prev) => ({ ...prev, [name]: value }));
   }
 
   function handleAccept(col) {
-    const edits = editStates[col.name] || {};
-    onAccept({ ...col, ...edits });
+    onAccept({ ...col, semantic_label: edits[col.name] ?? col.semantic_label });
   }
 
   return (
     <div className="space-y-3">
       {annotations.map((col) => (
-        <div key={col.name} className="border border-gray-200 rounded-lg p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <p className="font-mono font-medium text-gray-800">{col.name}</p>
-              <input
-                type="text"
-                defaultValue={col.semantic_label || ""}
-                placeholder="Semantic label"
-                className="mt-1 w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                onChange={(e) => handleEdit(col.name, "semantic_label", e.target.value)}
-              />
-              {col.reasoning && (
-                <p className="mt-1 text-xs text-gray-500 italic">{col.reasoning}</p>
-              )}
+        <Card key={col.name}>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-start gap-4">
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm font-medium">{col.name}</span>
+                  {col.suggested_constraint && (
+                    <Badge variant="secondary" className="text-xs">{col.suggested_constraint.rule_type}</Badge>
+                  )}
+                </div>
+                <Input
+                  defaultValue={col.semantic_label || ""}
+                  placeholder="Semantic label (optional)"
+                  className="h-8 text-sm"
+                  onChange={(e) => handleEdit(col.name, e.target.value)}
+                />
+                {col.reasoning && (
+                  <p className="text-xs text-muted-foreground italic">{col.reasoning}</p>
+                )}
+              </div>
+              <div className="flex gap-2 mt-1 shrink-0">
+                <Button size="sm" onClick={() => handleAccept(col)}>Accept</Button>
+                <Button size="sm" variant="ghost" onClick={() => onReject(col.name)}>Reject</Button>
+              </div>
             </div>
-            <div className="flex gap-2 mt-1 shrink-0">
-              <button
-                onClick={() => handleAccept(col)}
-                className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                Accept
-              </button>
-              <button
-                onClick={() => onReject(col.name)}
-                className="px-3 py-1 text-xs bg-gray-200 text-gray-600 rounded hover:bg-gray-300"
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );

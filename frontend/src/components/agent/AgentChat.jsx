@@ -1,4 +1,9 @@
 import { useState, useRef, useEffect } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Send } from "lucide-react";
 import ConfirmGenerate from "./ConfirmGenerate";
 
 export default function AgentChat({ messages, isLoading, readyToGenerate, config, onSend, onGenerate }) {
@@ -7,7 +12,7 @@ export default function AgentChat({ messages, isLoading, readyToGenerate, config
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLoading]);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -19,42 +24,49 @@ export default function AgentChat({ messages, isLoading, readyToGenerate, config
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {messages.length === 0 && (
-          <p className="text-sm text-gray-400 text-center mt-8">
-            Tell me what kind of synthetic data you'd like to generate.
-          </p>
-        )}
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className={`max-w-prose rounded-xl px-4 py-2 text-sm
-                ${msg.role === "user"
-                  ? "bg-blue-600 text-white rounded-br-sm"
-                  : "bg-gray-100 text-gray-800 rounded-bl-sm"}`}
-            >
-              {msg.content}
-              {msg.toolCallsMade?.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {msg.toolCallsMade.map((t) => (
-                    <span key={t} className="text-xs bg-blue-200 text-blue-800 rounded px-1.5 py-0.5">
-                      {t}
-                    </span>
+      <ScrollArea className="flex-1 px-4 py-4">
+        <div className="space-y-4">
+          {messages.length === 0 && !isLoading && (
+            <p className="text-sm text-muted-foreground text-center mt-8">
+              Tell me what kind of synthetic data you'd like to generate.
+            </p>
+          )}
+          {messages.map((msg, i) => (
+            <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-[80%] space-y-1 ${msg.role === "user" ? "items-end" : "items-start"} flex flex-col`}>
+                <div
+                  className={`rounded-2xl px-4 py-2.5 text-sm ${
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : "bg-muted text-foreground rounded-bl-sm"
+                  }`}
+                >
+                  {msg.content}
+                </div>
+                {msg.toolCallsMade?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 px-1">
+                    {msg.toolCallsMade.map((t) => (
+                      <Badge key={t} variant="secondary" className="text-xs">{t.replace(/_/g, " ")}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-muted rounded-2xl rounded-bl-sm px-4 py-2.5">
+                <div className="flex gap-1">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
                   ))}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 rounded-xl px-4 py-2 text-sm text-gray-400 animate-pulse">
-              Thinking…
-            </div>
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+      </ScrollArea>
 
       {readyToGenerate && (
         <div className="px-4 pb-2">
@@ -62,23 +74,20 @@ export default function AgentChat({ messages, isLoading, readyToGenerate, config
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="border-t border-gray-200 px-4 py-3 flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message…"
-          disabled={isLoading}
-          className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
-        />
-        <button
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Send
-        </button>
-      </form>
+      <div className="border-t p-4">
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type a message…"
+            disabled={isLoading}
+            className="flex-1"
+          />
+          <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -1,51 +1,40 @@
+import { Progress } from "@/components/ui/progress";
 import WizardStep from "./WizardStep";
 import ConfirmGenerate from "./ConfirmGenerate";
+
+const TOTAL_STEPS = 5;
 
 export default function AgentWizard({ messages, isLoading, readyToGenerate, config, onSend, onGenerate }) {
   const agentMessages = messages.filter((m) => m.role === "assistant");
   const currentStep = agentMessages.length;
   const latestMessage = agentMessages[agentMessages.length - 1]?.content || "";
-
-  const totalSteps = 5;
-  const progress = Math.min(100, (currentStep / totalSteps) * 100);
+  const progress = Math.min(100, (currentStep / TOTAL_STEPS) * 100);
 
   return (
-    <div className="max-w-lg mx-auto py-8 px-4 space-y-6">
-      <div>
-        <div className="flex justify-between text-xs text-gray-500 mb-1">
-          <span>Step {currentStep} of {totalSteps}</span>
-          <span>{Math.round(progress)}% complete</span>
+    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+      <div className="space-y-2">
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>Step {currentStep} of {TOTAL_STEPS}</span>
+          <span>{Math.round(progress)}%</span>
         </div>
-        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className="h-2 bg-blue-600 rounded-full transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        <Progress value={progress} className="h-2" />
       </div>
 
       {currentStep === 0 && !isLoading && (
-        <div className="text-center text-gray-500 text-sm py-6">
-          Starting your configuration wizard…
-        </div>
+        <p className="text-sm text-muted-foreground text-center py-6">Starting configuration wizard…</p>
       )}
 
       {latestMessage && !readyToGenerate && (
-        <WizardStep
-          step={currentStep}
-          message={latestMessage}
-          onAnswer={onSend}
-          isLoading={isLoading}
-        />
+        <WizardStep step={currentStep} message={latestMessage} onAnswer={onSend} isLoading={isLoading} />
       )}
 
       {isLoading && (
-        <div className="text-sm text-gray-400 text-center animate-pulse">Processing…</div>
+        <div className="flex justify-center py-4">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
       )}
 
-      {readyToGenerate && (
-        <ConfirmGenerate config={config} onGenerate={onGenerate} />
-      )}
+      {readyToGenerate && <ConfirmGenerate config={config} onGenerate={onGenerate} />}
     </div>
   );
 }

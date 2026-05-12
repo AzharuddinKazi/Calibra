@@ -1,79 +1,55 @@
-export default function WizardStep({ step, message, onAnswer, isLoading }) {
-  function detectInputType(text) {
-    const lower = text.toLowerCase();
-    if (/\b(how many|number of|rows|count)\b/.test(lower)) return "number";
-    if (/\b(fraud|aml|none|domain|pack)\b/.test(lower)) return "domain-select";
-    if (/\b(typolog|type of fraud)\b/.test(lower)) return "text";
-    return "text";
-  }
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
+function detectInputType(text) {
+  const lower = text.toLowerCase();
+  if (/\b(how many|number of|rows|count)\b/.test(lower)) return "number";
+  if (/\b(fraud|aml|none|domain|pack)\b/.test(lower)) return "domain";
+  return "text";
+}
+
+export default function WizardStep({ step, message, onAnswer, isLoading }) {
+  const [value, setValue] = useState("");
   const inputType = detectInputType(message);
 
   function handleSubmit(e) {
     e.preventDefault();
-    const value = e.target.answer?.value || e.target.domainPack?.value;
-    if (value) onAnswer(value);
+    if (value.trim()) { onAnswer(value.trim()); setValue(""); }
   }
 
   return (
-    <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
-      <div className="text-xs text-gray-400 mb-3">Step {step}</div>
-      <p className="text-sm text-gray-800 mb-4 leading-relaxed">{message}</p>
+    <Card>
+      <CardContent className="pt-6 space-y-4">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Step {step}</div>
+        <p className="text-sm leading-relaxed">{message}</p>
 
-      <form onSubmit={handleSubmit}>
-        {inputType === "number" && (
-          <div className="flex gap-2">
-            <input
-              name="answer"
-              type="number"
-              min="100"
-              placeholder="10000"
-              className="w-40 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              Continue
-            </button>
-          </div>
-        )}
-
-        {inputType === "domain-select" && (
-          <div className="flex gap-2 flex-wrap">
+        {inputType === "domain" && (
+          <div className="flex flex-wrap gap-2">
             {["fraud", "aml", "none"].map((opt) => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => onAnswer(opt)}
-                disabled={isLoading}
-                className="px-4 py-2 text-sm border border-gray-300 rounded-lg capitalize hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50"
-              >
+              <Button key={opt} variant="outline" size="sm" className="capitalize" disabled={isLoading} onClick={() => onAnswer(opt)}>
                 {opt}
-              </button>
+              </Button>
             ))}
           </div>
         )}
 
-        {inputType === "text" && (
-          <div className="flex gap-2">
-            <input
-              name="answer"
-              type="text"
-              placeholder="Your answer…"
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            <button
-              type="submit"
+        {inputType !== "domain" && (
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <Input
+              type={inputType === "number" ? "number" : "text"}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder={inputType === "number" ? "10000" : "Your answer…"}
               disabled={isLoading}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              Continue
-            </button>
-          </div>
+              className="flex-1"
+              min={inputType === "number" ? 100 : undefined}
+            />
+            <Button type="submit" size="sm" disabled={isLoading || !value.trim()}>Continue</Button>
+          </form>
         )}
-      </form>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
