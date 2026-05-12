@@ -18,9 +18,9 @@ describe("FidelityScoreCard", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("displays composite score as percentage", () => {
+  it("displays composite score value", () => {
     render(<FidelityScoreCard fidelity={goodFidelity} />);
-    expect(screen.getByText("87.0%")).toBeInTheDocument();
+    expect(screen.getByText("87.0")).toBeInTheDocument();
   });
 
   it("shows 'Below threshold' badges for below-threshold scores", () => {
@@ -29,9 +29,9 @@ describe("FidelityScoreCard", () => {
     expect(badges.length).toBeGreaterThan(0);
   });
 
-  it("shows 'Good' badges for high scores", () => {
+  it("shows 'Excellent' badges for high scores", () => {
     render(<FidelityScoreCard fidelity={goodFidelity} />);
-    const badges = screen.getAllByText(/good/i);
+    const badges = screen.getAllByText(/excellent/i);
     expect(badges.length).toBeGreaterThan(0);
   });
 });
