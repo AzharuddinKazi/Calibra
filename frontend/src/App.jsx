@@ -110,6 +110,8 @@ function Sidebar({ currentView, onHome }) {
 export default function App() {
   const [view, setView] = useState(VIEW.ENTRY);
   const [agentMode, setAgentMode] = useState("chat");
+  const [entryLoading, setEntryLoading] = useState(false);
+  const [entryError, setEntryError] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [columnProfiles, setColumnProfiles] = useState([]);
   const [domainPack, setDomainPack] = useState("none");
@@ -126,9 +128,17 @@ export default function App() {
   const { overrides, setOverride, clearOverride } = useDistributionOverrides();
 
   async function handleEntrySelect(entryPoint, mode) {
+    setEntryError(null);
     if (entryPoint === "agent_first") {
+      setEntryLoading(true);
       const session = await agent.startSession(mode, "agent_first");
-      if (!session) return; // startSession failed — error shown inside useAgent
+      setEntryLoading(false);
+      if (!session) {
+        setEntryError(
+          "Could not connect to the backend. Make sure the server is running and try again."
+        );
+        return;
+      }
       setAgentMode(mode);
       setView(VIEW.AGENT_CHAT);
     } else {
@@ -138,7 +148,7 @@ export default function App() {
 
   async function handleUploadComplete(uploadData) {
     setSessionId(uploadData.session_id);
-    setColumnProfiles([]);
+    setColumnProfiles(uploadData.column_profiles || []);
     setView(VIEW.CONFIGURE);
     annotation.annotate(uploadData.session_id);
   }
@@ -239,7 +249,11 @@ export default function App() {
   if (view === VIEW.ENTRY) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <AgentEntryPoint onSelectMode={handleEntrySelect} />
+        <AgentEntryPoint
+          onSelectMode={handleEntrySelect}
+          isLoading={entryLoading}
+          error={entryError}
+        />
       </div>
     );
   }

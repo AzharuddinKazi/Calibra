@@ -19,6 +19,7 @@ from backend.engine.profiler import profile_dataframe
 from backend.engine.sampler import make_rng, sample_from_profile, sample_from_schema
 from backend.engine.validator import validate_dataframe
 from backend.models.schemas import (
+    ColumnProfile,
     GenerateRequest,
     GenerateResponse,
     ReplayRequest,
@@ -41,6 +42,26 @@ router = APIRouter(tags=["generation"])
 _run_store: dict[str, RunRecord] = {}
 # In-memory output store for generated DataFrames (keyed by run_id)
 _output_store: dict[str, pd.DataFrame] = {}
+
+
+# ── GET /session/{session_id} ─────────────────────────────────────────────────
+
+@router.get("/session/{session_id}")
+async def get_session_data(session_id: str) -> dict:
+    """Return session data including column profiles. Used by the frontend configure screen."""
+    session = await get_session(session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found or expired.",
+        )
+    return {
+        "session_id": session.session_id,
+        "row_count": session.row_count,
+        "raw_filename": session.raw_filename,
+        "column_profiles": [p.model_dump() for p in session.column_profile],
+        "expires_at": session.expires_at.isoformat(),
+    }
 
 
 # ── POST /upload ───────────────────────────────────────────────────────────────
@@ -97,6 +118,7 @@ async def upload_csv(file: UploadFile = File(...)) -> UploadResponse:
         row_count=len(df),
         column_count=len(df.columns),
         expires_at=session.expires_at,
+        column_profiles=profiles,
     )
 
 
