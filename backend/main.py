@@ -70,6 +70,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ── CORS preflight handler ─────────────────────────────────────────────────────
+
+@app.options("/{full_path:path}", include_in_schema=False)
+async def preflight_handler(full_path: str):
+    """Handle CORS preflight requests. Avoids Pydantic validation on OPTIONS."""
+    return {"status": "ok"}
+
 # ── Router registration ────────────────────────────────────────────────────────
 
 app.include_router(auth.router)
