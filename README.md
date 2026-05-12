@@ -104,19 +104,31 @@ calibra/
 
 - Python 3.11+
 - Node.js 20+
-- An Anthropic API key (set as `ANTHROPIC_API_KEY` environment variable)
+- An Anthropic API key
 
-### Backend
+### Environment Variables
+
+| Variable | Where | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Backend | Required. Your Anthropic API key for LLM calls. |
+| `VITE_API_URL` | Frontend | Backend base URL. Defaults to `http://localhost:8000` if not set. |
+
+### 1 — Backend
 
 ```bash
-# Install dependencies
+# From the project root
 pip install -r requirements.txt
 
-# Run the development server
+# Set your API key
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Start the API server
 uvicorn backend.main:app --reload --port 8000
 ```
 
-### Frontend
+The API is now available at `http://localhost:8000`. Health check: `GET /health`.
+
+### 2 — Frontend
 
 ```bash
 cd frontend
@@ -124,17 +136,119 @@ cd frontend
 # Install dependencies
 npm install
 
-# Start the development server
+# Start the development server (proxies /api → localhost:8000 automatically)
 npm run dev
 ```
 
+Open `http://localhost:5173` in your browser.
+
 ### Running Tests
 
+**Backend (pytest):**
 ```bash
+# From project root
 pytest tests/ --cov=backend --cov-report=term-missing
 ```
 
-Minimum 80% line coverage is required on all engine modules.
+**Frontend (Vitest):**
+```bash
+cd frontend
+npm test
+```
+
+Minimum 80% line coverage is enforced on all engine modules. All LLM calls are mocked — tests never make live API calls.
+
+---
+
+## Deployment
+
+### Frontend — Vercel
+
+The frontend is a standard Vite/React app and deploys to Vercel in one step.
+
+**Option A — Vercel CLI:**
+```bash
+cd frontend
+npm i -g vercel
+vercel --prod
+```
+
+When prompted:
+- **Root directory:** `frontend`
+- **Build command:** `npm run build`
+- **Output directory:** `dist`
+- **Framework preset:** Vite
+
+**Option B — GitHub integration:**
+
+1. Push this repo to GitHub.
+2. Go to [vercel.com](https://vercel.com) → **Add New Project** → import your repo.
+3. In **Configure Project**, set **Root Directory** to `frontend`.
+4. Vercel auto-detects Vite. Leave build and output settings as-is.
+5. Under **Environment Variables**, add:
+
+| Name | Value |
+|---|---|
+| `VITE_API_URL` | Your deployed backend URL (e.g. `https://calibra-api.railway.app`) |
+
+6. Click **Deploy**.
+
+A `vercel.json` at the repo root handles client-side routing:
+
+```json
+{
+  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
+}
+```
+
+> **Note:** Create this file at `frontend/vercel.json` if deploying with the root directory set to `frontend/`.
+
+---
+
+### Backend — Railway (recommended)
+
+The FastAPI backend requires a persistent server because it holds in-memory session state. Serverless platforms (Vercel Functions, AWS Lambda) are not suitable — sessions would not persist across cold starts.
+
+**Deploy to Railway:**
+
+1. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**.
+2. Select this repository.
+3. Railway auto-detects the Python app. Set the following in **Settings → Variables**:
+
+| Name | Value |
+|---|---|
+| `ANTHROPIC_API_KEY` | `sk-ant-...` |
+
+4. In **Settings → Deploy**, set the start command:
+```
+uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+```
+
+5. Copy the generated Railway URL (e.g. `https://calibra-api.railway.app`) and paste it as `VITE_API_URL` in your Vercel frontend environment variables.
+
+**Alternative platforms:** [Render](https://render.com), [Fly.io](https://fly.io), or any VPS running Docker.
+
+**Dockerfile (optional, for any container platform):**
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/ ./backend/
+EXPOSE 8000
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+---
+
+### Full-Stack Configuration Summary
+
+| Component | Local | Production |
+|---|---|---|
+| Backend | `http://localhost:8000` | Railway / Render / Fly.io URL |
+| Frontend | `http://localhost:5173` | Vercel deployment URL |
+| `VITE_API_URL` | Not needed (proxy handles it) | Set to backend URL in Vercel env vars |
+| `ANTHROPIC_API_KEY` | Exported in shell | Set in Railway / Render env vars |
 
 ---
 

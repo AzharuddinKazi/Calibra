@@ -121,8 +121,8 @@ def _infer_type(series: pd.Series) -> str:
     # String path
     n_unique = clean.nunique()
     total = len(clean)
-    # Very high cardinality strings → id
-    if n_unique / total > 0.95 and total > 50:
+    # All-unique values or very high cardinality → id
+    if n_unique == total or (n_unique / total > 0.95 and total > 50):
         return "id"
     return "categorical"
 
