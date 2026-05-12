@@ -264,6 +264,7 @@ class AgentMessageResponse(BaseModel):
     tool_calls_made: list[str] = Field(default_factory=list)
     ready_to_generate: bool = False
     preview_run_id: str | None = None
+    suggestions: list[str] = Field(default_factory=list)
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────

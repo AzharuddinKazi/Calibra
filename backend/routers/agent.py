@@ -22,6 +22,58 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
+
+# ── Quick-reply suggestion extraction ─────────────────────────────────────────
+
+def _extract_suggestions(reply: str, config: dict) -> list[str]:
+    """Return contextual quick-reply chips based on what the agent just asked.
+
+    Pattern-matches against the reply text and the current config state to
+    surface the most relevant one-click answers for the current question.
+    """
+    r = reply.lower()
+    has_q = "?" in reply
+
+    # Domain pack — only when not yet set
+    if not config.get("domain_pack") and has_q and any(
+        kw in r for kw in ["domain", "kind of data", "type of data", "use case", "what are you"]
+    ):
+        return ["Fraud detection", "AML transaction monitoring", "General tabular data", "Not sure yet"]
+
+    # Row count
+    if has_q and any(kw in r for kw in ["how many rows", "row count", "many rows", "dataset size", "how large", "how big"]):
+        return ["10,000 rows", "50,000 rows", "100,000 rows", "500,000 rows"]
+
+    # Prevalence / fraud rate
+    if has_q and any(kw in r for kw in ["prevalence", "fraud rate", "% fraud", "percentage of fraud", "fraction of fraud", "what rate", "what percentage"]):
+        return ["1% fraud (realistic)", "2% fraud", "5% fraud", "10% fraud (elevated)"]
+
+    # Fraud typologies
+    if has_q and any(kw in r for kw in ["typolog", "type of fraud", "specific type", "which type", "card", "takeover", "synthetic identity"]):
+        return ["Card-not-present fraud", "Account takeover", "Synthetic identity", "First-party fraud", "All typologies"]
+
+    # AML typologies
+    if has_q and any(kw in r for kw in ["structuring", "layering", "fan-out", "fan-in", "circular", "scatter", "aml typolog"]):
+        return ["Structuring / smurfing", "Fan-out", "Fan-in / aggregation", "Circular flow", "Scatter-gather"]
+
+    # Constraints
+    if has_q and any(kw in r for kw in ["constraint", "business rule", "any rule", "rule you", "restrict"]):
+        return ["Transaction amount > $0", "Add a rule", "No constraints needed"]
+
+    # Column schema (agent-first, no CSV)
+    if has_q and any(kw in r for kw in ["column", "schema", "fields", "feature", "describe your", "tell me about your"]):
+        return ["Standard transaction schema", "I'll describe the columns manually", "Similar to a bank ledger"]
+
+    # Confirmation before marking ready
+    if has_q and any(kw in r for kw in ["ready to generate", "shall i", "want me to generate", "look good", "does this look", "happy with"]):
+        return ["Yes, generate now", "No, let me adjust something"]
+
+    # Preview offer
+    if has_q and any(kw in r for kw in ["preview", "sample", "quick look", "want to see"]):
+        return ["Yes, show me a preview", "Skip preview, generate full dataset"]
+
+    return []
+
 # In-memory agent session store (same pattern as main session store)
 _agent_store: dict[str, AgentState] = {}
 
@@ -73,6 +125,7 @@ async def send_message(req: AgentMessageRequest) -> AgentMessageResponse:
         )
 
     turn_result = await run_agent_turn(state, req.message)
+    suggestions = _extract_suggestions(turn_result.reply, state.config.model_dump())
 
     return AgentMessageResponse(
         reply=turn_result.reply,
@@ -80,6 +133,7 @@ async def send_message(req: AgentMessageRequest) -> AgentMessageResponse:
         tool_calls_made=turn_result.tool_calls_made,
         ready_to_generate=state.config.ready_to_generate,
         preview_run_id=state.preview_run_id,
+        suggestions=suggestions,
     )
 
 

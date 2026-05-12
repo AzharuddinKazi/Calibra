@@ -3,7 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Send } from "lucide-react";
+import { Send, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ConfirmGenerate from "./ConfirmGenerate";
 
@@ -11,13 +11,21 @@ function formatTime(date) {
   return new Date(date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function AgentChat({ messages, isLoading, readyToGenerate, config, onSend, onGenerate }) {
+export default function AgentChat({
+  messages,
+  isLoading,
+  readyToGenerate,
+  config,
+  suggestions = [],
+  onSend,
+  onGenerate,
+}) {
   const [input, setInput] = useState("");
   const bottomRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
+  }, [messages, isLoading, suggestions]);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -31,6 +39,11 @@ export default function AgentChat({ messages, isLoading, readyToGenerate, config
     if (e.key === "Enter" && !e.shiftKey) {
       handleSubmit(e);
     }
+  }
+
+  function handleSuggestion(text) {
+    if (isLoading) return;
+    onSend(text);
   }
 
   return (
@@ -57,8 +70,19 @@ export default function AgentChat({ messages, isLoading, readyToGenerate, config
               )}
             >
               {msg.role === "assistant" && (
-                <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-primary text-xs leading-none">◆</span>
+                <div
+                  className={cn(
+                    "w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+                    msg.isError
+                      ? "bg-destructive/10 border border-destructive/20"
+                      : "bg-primary/10 border border-primary/20"
+                  )}
+                >
+                  {msg.isError ? (
+                    <AlertCircle className="w-3.5 h-3.5 text-destructive" />
+                  ) : (
+                    <span className="text-primary text-xs leading-none">◆</span>
+                  )}
                 </div>
               )}
 
@@ -73,6 +97,8 @@ export default function AgentChat({ messages, isLoading, readyToGenerate, config
                     "rounded-2xl px-4 py-3 text-sm leading-relaxed",
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : msg.isError
+                      ? "bg-destructive/10 border border-destructive/20 text-destructive rounded-bl-sm"
                       : "bg-card border border-border text-foreground rounded-bl-sm"
                   )}
                 >
@@ -118,6 +144,26 @@ export default function AgentChat({ messages, isLoading, readyToGenerate, config
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Suggestion chips — shown after last agent message */}
+          {!isLoading && suggestions.length > 0 && (
+            <div className="flex flex-wrap gap-2 pl-10 pt-1">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => handleSuggestion(s)}
+                  className={cn(
+                    "text-xs px-3.5 py-2 rounded-full border transition-all duration-150",
+                    "border-primary/30 text-primary bg-primary/5",
+                    "hover:bg-primary/15 hover:border-primary/60 hover:shadow-[0_0_10px_hsl(235_80%_65%/0.2)]",
+                    "active:scale-95 cursor-pointer font-medium"
+                  )}
+                >
+                  {s}
+                </button>
+              ))}
             </div>
           )}
 
