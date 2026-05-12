@@ -109,6 +109,7 @@ class UploadResponse(BaseModel):
     row_count: int
     column_count: int
     expires_at: datetime
+    column_profiles: list["ColumnProfile"] = Field(default_factory=list)
 
 
 # ── Generation ────────────────────────────────────────────────────────────────

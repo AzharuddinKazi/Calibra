@@ -61,6 +61,10 @@ export function uploadCSV(file) {
   return request("/upload", { method: "POST", body: form });
 }
 
+export function getSession(sessionId) {
+  return request(`/session/${sessionId}`);
+}
+
 export function generate(payload) {
   return request("/generate", {
     method: "POST",
