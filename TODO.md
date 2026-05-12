@@ -16,29 +16,29 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` complete
 
 ## Phase 2 — Core Statistical Engine
 
-- [ ] backend/engine/profiler.py — column type inference and distribution fitting
-- [ ] backend/engine/sampler.py — synthetic data sampling (upload-first and agent-first paths)
-- [ ] backend/engine/validator.py — constraint validation with 3-attempt regeneration loop
-- [ ] backend/engine/fidelity.py — JS divergence column fidelity + correlation fidelity composite score
-- [ ] backend/engine/previewer.py — histogram bins, KDE, correlation matrices for /preview
+- [x] backend/engine/profiler.py — column type inference and distribution fitting
+- [x] backend/engine/sampler.py — synthetic data sampling (upload-first and agent-first paths)
+- [x] backend/engine/validator.py — constraint validation with 3-attempt regeneration loop
+- [x] backend/engine/fidelity.py — JS divergence column fidelity + correlation fidelity composite score
+- [x] backend/engine/previewer.py — histogram bins, KDE, correlation matrices for /preview
 
 ---
 
 ## Phase 3 — Domain Packs
 
-- [ ] backend/domain_packs/base.py — abstract BaseDomainPack interface
-- [ ] backend/domain_packs/fraud.py — financial crime fraud detection domain pack
-- [ ] backend/domain_packs/aml.py — AML transaction monitoring domain pack
+- [x] backend/domain_packs/base.py — abstract BaseDomainPack interface
+- [x] backend/domain_packs/fraud.py — financial crime fraud detection domain pack
+- [x] backend/domain_packs/aml.py — AML transaction monitoring domain pack
 
 ---
 
 ## Phase 4 — Intelligence Layer
 
-- [ ] backend/intelligence/client.py — shared Anthropic LLM client (singleton, call_llm, load_prompt)
-- [ ] backend/intelligence/prompts/ — three versioned prompt files (annotate_columns_v1, parse_constraints_v1, summarise_report_v1)
-- [ ] backend/intelligence/annotator.py — LLM Call 1: column semantic annotation + domain pack suggestion
-- [ ] backend/intelligence/constraint_parser.py — LLM Call 2: natural language → formal constraint schema
-- [ ] backend/intelligence/report_summariser.py — LLM Call 3: plain-English audit report summary
+- [x] backend/intelligence/client.py — shared Anthropic LLM client (singleton, call_llm, load_prompt)
+- [x] backend/intelligence/prompts/ — three versioned prompt files (annotate_columns_v1, parse_constraints_v1, summarise_report_v1)
+- [x] backend/intelligence/annotator.py — LLM Call 1: column semantic annotation + domain pack suggestion
+- [x] backend/intelligence/constraint_parser.py — LLM Call 2: natural language → formal constraint schema
+- [x] backend/intelligence/report_summariser.py — LLM Call 3: plain-English audit report summary
 
 ---
 
@@ -122,13 +122,13 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` complete
 
 ## Phase 9 — Tests
 
-- [ ] tests/test_profiler.py — profiler unit tests ≥80% coverage
-- [ ] tests/test_sampler.py — sampler unit tests ≥80% coverage
-- [ ] tests/test_validator.py — passing row + failing row per constraint type
-- [ ] tests/test_fidelity.py — fidelity tests against known dataset with expected score range
-- [ ] tests/test_previewer.py — histogram bins, KDE shape, correlation matrix symmetry
-- [ ] tests/test_domain_packs.py — constraint pass/fail tests for fraud and AML packs
-- [ ] tests/test_intelligence.py — all three LLM calls mocked; fallback degradation tests
+- [x] tests/test_profiler.py — profiler unit tests ≥80% coverage
+- [x] tests/test_sampler.py — sampler unit tests ≥80% coverage
+- [x] tests/test_validator.py — passing row + failing row per constraint type
+- [x] tests/test_fidelity.py — fidelity tests against known dataset with expected score range
+- [x] tests/test_previewer.py — histogram bins, KDE shape, correlation matrix symmetry
+- [x] tests/test_domain_packs.py — constraint pass/fail tests for fraud and AML packs
+- [x] tests/test_intelligence.py — all three LLM calls mocked; fallback degradation tests
 - [ ] tests/test_agent.py — tool handler logic mocked; no live API or engine calls
 
 ---
