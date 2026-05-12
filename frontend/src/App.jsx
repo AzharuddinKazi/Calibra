@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { Check } from "lucide-react";
+import { Check, ArrowLeft } from "lucide-react";
 import Upload from "./components/upload/Upload";
 import ColumnPreviewTable from "./components/upload/ColumnPreviewTable";
 import ColumnAnnotations from "./components/intelligence/ColumnAnnotations";
@@ -46,18 +46,24 @@ function stepFromView(view) {
   return 0;
 }
 
-function Sidebar({ currentView }) {
+function Sidebar({ currentView, onHome }) {
   const currentStep = stepFromView(currentView);
   return (
     <aside className="w-60 shrink-0 flex flex-col border-r border-border bg-card min-h-screen sticky top-0 h-screen overflow-hidden">
       <div className="px-6 py-5 border-b border-border">
-        <div className="flex items-center gap-2">
-          <span className="text-primary text-xl leading-none">◆</span>
-          <span className="font-semibold text-base tracking-tight">Calibra</span>
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">Synthetic Data Engine</p>
+        <button
+          onClick={onHome}
+          className="flex items-center gap-2 group focus:outline-none"
+        >
+          <span className="text-primary text-xl leading-none group-hover:drop-shadow-[0_0_8px_hsl(235_80%_65%/0.7)] transition-all">
+            ◆
+          </span>
+          <span className="font-semibold text-base tracking-tight text-foreground">Calibra</span>
+        </button>
+        <p className="text-xs text-muted-foreground mt-1 pl-0.5">Synthetic Data Engine</p>
       </div>
-      <nav className="px-4 py-6 flex flex-col gap-1">
+
+      <nav className="px-3 py-6 flex flex-col gap-0.5">
         {UPLOAD_STEPS.map((step) => {
           const done = currentStep > step.id;
           const active = currentStep === step.id;
@@ -68,15 +74,15 @@ function Sidebar({ currentView }) {
                 "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors",
                 active && "bg-primary/10 text-primary font-medium",
                 done && "text-muted-foreground",
-                !active && !done && "text-muted-foreground/50"
+                !active && !done && "text-muted-foreground/40"
               )}
             >
               <div
                 className={cn(
-                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 border",
+                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 border transition-colors",
                   active && "border-primary bg-primary text-primary-foreground",
-                  done && "border-emerald-500 bg-emerald-500/10 text-emerald-400",
-                  !active && !done && "border-border text-muted-foreground/50"
+                  done && "border-emerald-500/60 bg-emerald-500/10 text-emerald-400",
+                  !active && !done && "border-border/50 text-muted-foreground/40"
                 )}
               >
                 {done ? <Check className="w-3 h-3" /> : step.id}
@@ -86,6 +92,12 @@ function Sidebar({ currentView }) {
           );
         })}
       </nav>
+
+      <div className="mt-auto px-4 py-5 border-t border-border">
+        <p className="text-xs text-muted-foreground/40 leading-relaxed">
+          Financial crime · Fraud · AML
+        </p>
+      </div>
     </aside>
   );
 }
@@ -123,8 +135,11 @@ export default function App() {
     annotation.annotate(uploadData.session_id);
   }
 
-  function handleAnnotationAccept(col) {
-    if (annotation.result?.recommended_domain_pack && annotation.result.recommended_domain_pack !== "none") {
+  function handleAnnotationAccept() {
+    if (
+      annotation.result?.recommended_domain_pack &&
+      annotation.result.recommended_domain_pack !== "none"
+    ) {
       setDomainPack(annotation.result.recommended_domain_pack);
     }
   }
@@ -136,13 +151,16 @@ export default function App() {
   function handleConstraintConfirm() {
     const result = constraintParser.confirm();
     if (result?.constraint?.parseable) {
-      setConstraints((prev) => [...prev, {
-        rule_type: result.constraint.rule_type,
-        column: result.constraint.column,
-        params: result.constraint.params || {},
-        readable_summary: result.constraint.readable_summary,
-        source: "user_nl",
-      }]);
+      setConstraints((prev) => [
+        ...prev,
+        {
+          rule_type: result.constraint.rule_type,
+          column: result.constraint.column,
+          params: result.constraint.params || {},
+          readable_summary: result.constraint.readable_summary,
+          source: "user_nl",
+        },
+      ]);
     }
   }
 
@@ -179,9 +197,6 @@ export default function App() {
     }
   }
 
-  const isUploadFlow = view === VIEW.UPLOAD || view === VIEW.CONFIGURE || view === VIEW.RESULTS;
-  const isAgentFlow = view === VIEW.AGENT_CHAT;
-
   if (view === VIEW.ENTRY) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -190,65 +205,71 @@ export default function App() {
     );
   }
 
-  if (isAgentFlow) {
+  if (view === VIEW.AGENT_CHAT) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <header className="h-14 border-b border-border flex items-center px-6 shrink-0">
+        <header className="h-14 border-b border-border flex items-center px-5 shrink-0 bg-card/50 backdrop-blur-sm">
           <button
             onClick={() => setView(VIEW.ENTRY)}
-            className="text-muted-foreground hover:text-foreground transition-colors text-sm flex items-center gap-2 mr-6"
+            className="text-muted-foreground hover:text-foreground transition-colors text-sm flex items-center gap-1.5 mr-5"
           >
-            ← Back
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back
           </button>
-          <span className="text-primary text-lg leading-none mr-2">◆</span>
+          <span className="text-primary text-base leading-none mr-2">◆</span>
           <span className="font-semibold text-sm">Calibra</span>
-          <span className="mx-3 text-border">|</span>
+          <span className="mx-3 text-border/60">|</span>
           <span className="text-sm text-muted-foreground">AI Agent</span>
+
+          <div className="ml-auto flex items-center gap-1.5">
+            {["chat", "wizard"].map((m) => (
+              <button
+                key={m}
+                onClick={() => {
+                  setAgentMode(m);
+                  agent.switchMode(m);
+                }}
+                className={cn(
+                  "text-xs px-3 py-1.5 rounded-full capitalize transition-colors font-medium",
+                  agentMode === m
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                )}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
         </header>
 
-        <div className="flex flex-1 overflow-hidden" style={{ height: "calc(100vh - 3.5rem)" }}>
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="border-b border-border px-4 py-2 flex items-center gap-2 shrink-0">
-              {["chat", "wizard"].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => { setAgentMode(m); agent.switchMode(m); }}
-                  className={cn(
-                    "text-xs px-3 py-1.5 rounded-full capitalize transition-colors font-medium",
-                    agentMode === m
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                  )}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-            <div className="flex-1 overflow-hidden">
-              {agentMode === "chat" ? (
-                <AgentChat
-                  messages={agent.messages}
-                  isLoading={agent.isLoading}
-                  readyToGenerate={agent.readyToGenerate}
-                  config={agent.config}
-                  onSend={agent.sendMessage}
-                  onGenerate={handleGenerate}
-                />
-              ) : (
-                <AgentWizard
-                  messages={agent.messages}
-                  isLoading={agent.isLoading}
-                  readyToGenerate={agent.readyToGenerate}
-                  config={agent.config}
-                  onSend={agent.sendMessage}
-                  onGenerate={handleGenerate}
-                />
-              )}
-            </div>
+        <div
+          className="flex flex-1 overflow-hidden"
+          style={{ height: "calc(100vh - 3.5rem)" }}
+        >
+          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+            {agentMode === "chat" ? (
+              <AgentChat
+                messages={agent.messages}
+                isLoading={agent.isLoading}
+                readyToGenerate={agent.readyToGenerate}
+                config={agent.config}
+                onSend={agent.sendMessage}
+                onGenerate={handleGenerate}
+              />
+            ) : (
+              <AgentWizard
+                messages={agent.messages}
+                isLoading={agent.isLoading}
+                readyToGenerate={agent.readyToGenerate}
+                config={agent.config}
+                onSend={agent.sendMessage}
+                onGenerate={handleGenerate}
+              />
+            )}
           </div>
 
           <aside className="w-72 border-l border-border bg-card overflow-y-auto shrink-0 hidden lg:block">
-            <div className="p-4">
+            <div className="p-5">
               <ConfigSummaryPanel config={agent.config} />
             </div>
           </aside>
@@ -259,15 +280,16 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <Sidebar currentView={view} />
+      <Sidebar currentView={view} onHome={() => setView(VIEW.ENTRY)} />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 border-b border-border flex items-center px-8 shrink-0">
+        <header className="h-14 border-b border-border flex items-center px-8 shrink-0 bg-card/30">
           <button
             onClick={() => setView(VIEW.ENTRY)}
-            className="text-muted-foreground hover:text-foreground transition-colors text-sm mr-6"
+            className="text-muted-foreground hover:text-foreground transition-colors text-sm flex items-center gap-1.5 mr-5"
           >
-            ← Home
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Home
           </button>
           <h1 className="text-sm font-medium text-foreground">
             {view === VIEW.UPLOAD && "Upload Dataset"}
@@ -277,13 +299,13 @@ export default function App() {
         </header>
 
         <main className="flex-1 overflow-y-auto px-8 py-8">
-
           {view === VIEW.UPLOAD && (
-            <div className="max-w-2xl mx-auto space-y-6">
-              <div>
+            <div className="max-w-2xl mx-auto space-y-7">
+              <div className="space-y-1.5">
                 <h2 className="text-2xl font-semibold tracking-tight">Upload your dataset</h2>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Upload a sample CSV — Calibra learns its statistical structure and generates synthetic data at scale.
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  Upload a sample CSV — Calibra learns its statistical structure and generates
+                  synthetic data at scale.
                 </p>
               </div>
               <Upload onUploadComplete={handleUploadComplete} />
@@ -293,64 +315,84 @@ export default function App() {
           {view === VIEW.CONFIGURE && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl">
               <div className="lg:col-span-2 space-y-8">
-
                 {columnProfiles.length > 0 && (
                   <section className="space-y-3">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Column Profile</h3>
+                    <SectionHeader>Column Profile</SectionHeader>
                     <ColumnPreviewTable profiles={columnProfiles} />
                   </section>
                 )}
 
                 {annotation.loading && (
-                  <p className="text-sm text-muted-foreground animate-pulse flex items-center gap-2">
+                  <div className="flex items-center gap-2.5 text-sm text-muted-foreground py-1">
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
                     Analysing your dataset with AI…
-                  </p>
+                  </div>
                 )}
 
                 {annotation.result && !annotation.isFallback && (
                   <section className="space-y-3">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">AI Column Annotations</h3>
+                    <SectionHeader>AI Column Annotations</SectionHeader>
                     <ColumnAnnotations
                       annotations={annotation.result.columns}
                       onAccept={handleAnnotationAccept}
                       onReject={() => {}}
                     />
-                    <PrevalenceBenchmark annotation={annotation.result} onApply={setPrevalence} />
+                    <PrevalenceBenchmark
+                      annotation={annotation.result}
+                      onApply={setPrevalence}
+                    />
                   </section>
                 )}
 
                 <Separator />
 
                 <section className="space-y-3">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Domain Configuration</h3>
+                  <SectionHeader>Domain Configuration</SectionHeader>
                   <DomainConfig
                     domainPack={domainPack}
                     typologies={typologies}
-                    onChange={({ domainPack: dp, typologies: t }) => { setDomainPack(dp); setTypologies(t); }}
+                    onChange={({ domainPack: dp, typologies: t }) => {
+                      setDomainPack(dp);
+                      setTypologies(t);
+                    }}
                   />
                 </section>
 
                 <section className="space-y-3">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Prevalence Targets</h3>
-                  <PrevalenceSlider domainPack={domainPack} prevalence={prevalence} onChange={setPrevalence} />
+                  <SectionHeader>Prevalence Targets</SectionHeader>
+                  <PrevalenceSlider
+                    domainPack={domainPack}
+                    prevalence={prevalence}
+                    onChange={setPrevalence}
+                  />
                 </section>
 
                 <Separator />
 
                 <section className="space-y-3">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Constraints</h3>
-                  <ConstraintInput sessionId={sessionId} onParse={handleConstraintParse} loading={constraintParser.loading} />
+                  <SectionHeader>Constraints</SectionHeader>
+                  <ConstraintInput
+                    sessionId={sessionId}
+                    onParse={handleConstraintParse}
+                    loading={constraintParser.loading}
+                  />
                   {constraintParser.parsed && (
-                    <ConstraintReview parsed={constraintParser.parsed} onConfirm={handleConstraintConfirm} onDiscard={constraintParser.discard} />
+                    <ConstraintReview
+                      parsed={constraintParser.parsed}
+                      onConfirm={handleConstraintConfirm}
+                      onDiscard={constraintParser.discard}
+                    />
                   )}
-                  <ConstraintList constraints={constraints} onDelete={handleConstraintDelete} />
+                  <ConstraintList
+                    constraints={constraints}
+                    onDelete={handleConstraintDelete}
+                  />
                 </section>
 
                 <Separator />
 
                 <section className="space-y-3">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Generate</h3>
+                  <SectionHeader>Generate</SectionHeader>
                   <GenerationPanel
                     sessionId={sessionId}
                     domainPack={domainPack}
@@ -366,16 +408,23 @@ export default function App() {
 
               <aside>
                 <div className="sticky top-8 space-y-4">
-                  <div className="rounded-lg border border-border bg-card p-4 space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Session Summary</p>
+                  <div className="rounded-xl border border-border bg-card p-5 space-y-1">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                      Session Summary
+                    </p>
                     {[
                       ["Domain Pack", domainPack !== "none" ? domainPack : null],
                       ["Typologies", typologies.length ? typologies.join(", ") : null],
                       ["Constraints", constraints.length ? `${constraints.length} active` : null],
                     ].map(([label, val]) => (
-                      <div key={label} className="flex justify-between text-sm py-1">
-                        <span className="text-muted-foreground">{label}</span>
-                        <span className={val ? "font-medium" : "text-muted-foreground/50 italic text-xs"}>
+                      <div key={label} className="flex justify-between text-xs py-1.5 gap-3">
+                        <span className="text-muted-foreground shrink-0">{label}</span>
+                        <span
+                          className={cn(
+                            "font-medium text-right truncate",
+                            val ? "text-foreground" : "text-muted-foreground/40 italic"
+                          )}
+                        >
                           {val || "not set"}
                         </span>
                       </div>
@@ -398,9 +447,16 @@ export default function App() {
               )}
             </div>
           )}
-
         </main>
       </div>
     </div>
+  );
+}
+
+function SectionHeader({ children }) {
+  return (
+    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      {children}
+    </h3>
   );
 }
