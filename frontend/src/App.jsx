@@ -138,8 +138,9 @@ export default function App() {
       const session = await agent.startSession(mode, "agent_first");
       setEntryLoading(false);
       if (!session) {
+        const detail = agent.error ? ` (${agent.error})` : "";
         setEntryError(
-          "Could not connect to the backend. Make sure the server is running and try again."
+          `Could not connect to the backend. Make sure the server is running and try again.${detail}`
         );
         return;
       }

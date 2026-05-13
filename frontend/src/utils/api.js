@@ -3,7 +3,11 @@
  * No fetch() calls should appear anywhere else in the frontend.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+// In development, relative "/api" is proxied by Vite to http://localhost:8000
+// (see vite.config.js proxy section). This avoids cross-origin failures when
+// the browser is on a different machine than the backend.
+// Override at build time via VITE_API_URL for production deployments.
+const BASE_URL = import.meta.env.VITE_API_URL ?? "/api";
 
 async function request(path, options = {}) {
   const token = localStorage.getItem("calibra_token");
