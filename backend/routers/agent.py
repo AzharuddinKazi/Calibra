@@ -79,6 +79,11 @@ def _extract_suggestions(reply: str, config: dict) -> list[str]:
 _agent_store: dict[str, AgentState] = {}
 
 
+def get_agent_session(session_id: str) -> AgentState | None:
+    """Return the AgentState for session_id, or None if not found."""
+    return _agent_store.get(session_id)
+
+
 # ── POST /agent/session ───────────────────────────────────────────────────────
 
 @router.post("/session", response_model=AgentSessionResponse)
