@@ -57,17 +57,7 @@ export function getMe() {
   return request("/auth/me");
 }
 
-// ── Upload & generation ───────────────────────────────────────────────────────
-
-export function uploadCSV(file) {
-  const form = new FormData();
-  form.append("file", file);
-  return request("/upload", { method: "POST", body: form });
-}
-
-export function getSession(sessionId) {
-  return request(`/session/${sessionId}`);
-}
+// ── Generation ────────────────────────────────────────────────────────────────
 
 export function generate(payload) {
   return request("/generate", {
@@ -80,22 +70,6 @@ export function replay(runId) {
   return request("/replay", {
     method: "POST",
     body: JSON.stringify({ run_id: runId }),
-  });
-}
-
-// ── Intelligence ──────────────────────────────────────────────────────────────
-
-export function annotateColumns(sessionId) {
-  return request("/intelligence/annotate", {
-    method: "POST",
-    body: JSON.stringify({ session_id: sessionId }),
-  });
-}
-
-export function parseConstraint(sessionId, naturalLanguage) {
-  return request("/intelligence/parse-constraint", {
-    method: "POST",
-    body: JSON.stringify({ session_id: sessionId, natural_language: naturalLanguage }),
   });
 }
 

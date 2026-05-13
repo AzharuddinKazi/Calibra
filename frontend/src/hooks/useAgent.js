@@ -11,6 +11,9 @@ export function useAgent() {
   const [readyToGenerate, setReadyToGenerate] = useState(false);
   const [previewRunId, setPreviewRunId] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
+  // Increments each turn a new suggestion set arrives — used as QuestionModal key
+  // so the modal always remounts with fresh state even when option strings are identical
+  const [suggestionKey, setSuggestionKey] = useState(0);
 
   const startSession = useCallback(async (sessionMode, entryPoint, uploadSessionId = null) => {
     setIsLoading(true);
@@ -63,7 +66,13 @@ export function useAgent() {
       setMessages((prev) => [...prev, assistantMsg]);
       setConfig(data.updated_config);
       setReadyToGenerate(data.ready_to_generate);
-      setSuggestions(data.suggestions || []);
+      const newSuggestions = data.suggestions || [];
+      setSuggestions(newSuggestions);
+      // Always bump key when the agent responds — ensures modal remounts
+      // even if suggestion strings happen to be identical to previous turn
+      if (newSuggestions.length > 0) {
+        setSuggestionKey((k) => k + 1);
+      }
       if (data.preview_run_id) {
         setPreviewRunId(data.preview_run_id);
       }
@@ -106,6 +115,7 @@ export function useAgent() {
     readyToGenerate,
     previewRunId,
     suggestions,
+    suggestionKey,
     startSession,
     sendMessage,
     switchMode,
