@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { createAgentSession, sendAgentMessage, getAgentState } from "../utils/api";
 
 export function useAgent() {
@@ -15,6 +15,10 @@ export function useAgent() {
   // so the modal always remounts with fresh state even when option strings are identical
   const [suggestionKey, setSuggestionKey] = useState(0);
 
+  // Keep a ref to the current mode so auto-recovery can re-create the session
+  // with the same mode without needing mode in sendMessage's dependency array.
+  const modeRef = useRef("chat");
+
   const startSession = useCallback(async (sessionMode, entryPoint, uploadSessionId = null) => {
     setIsLoading(true);
     setError(null);
@@ -22,6 +26,7 @@ export function useAgent() {
       const data = await createAgentSession(sessionMode, entryPoint, uploadSessionId);
       setSessionId(data.session_id);
       setMode(data.mode);
+      modeRef.current = data.mode;
       setConfig(data.config);
       setMessages([]);
       setSuggestions([]);
@@ -31,6 +36,27 @@ export function useAgent() {
       return null;
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  // Shared helper that applies a successful agent response to state.
+  const _applyTurnResult = useCallback((data) => {
+    const assistantMsg = {
+      role: "assistant",
+      content: data.reply,
+      toolCallsMade: data.tool_calls_made,
+      timestamp: Date.now(),
+    };
+    setMessages((prev) => [...prev, assistantMsg]);
+    setConfig(data.updated_config);
+    setReadyToGenerate(data.ready_to_generate);
+    const newSuggestions = data.suggestions || [];
+    setSuggestions(newSuggestions);
+    if (newSuggestions.length > 0) {
+      setSuggestionKey((k) => k + 1);
+    }
+    if (data.preview_run_id) {
+      setPreviewRunId(data.preview_run_id);
     }
   }, []);
 
@@ -57,27 +83,31 @@ export function useAgent() {
     setError(null);
     try {
       const data = await sendAgentMessage(sessionId, text);
-      const assistantMsg = {
-        role: "assistant",
-        content: data.reply,
-        toolCallsMade: data.tool_calls_made,
-        timestamp: Date.now(),
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-      setConfig(data.updated_config);
-      setReadyToGenerate(data.ready_to_generate);
-      const newSuggestions = data.suggestions || [];
-      setSuggestions(newSuggestions);
-      // Always bump key when the agent responds — ensures modal remounts
-      // even if suggestion strings happen to be identical to previous turn
-      if (newSuggestions.length > 0) {
-        setSuggestionKey((k) => k + 1);
-      }
-      if (data.preview_run_id) {
-        setPreviewRunId(data.preview_run_id);
-      }
+      _applyTurnResult(data);
       return data;
     } catch (err) {
+      // Auto-recover from a stale session (backend restart wipes in-memory store).
+      // Silently create a fresh session and retry the message so the user never
+      // sees a hard error just because the server restarted.
+      if (err.message === "Agent session not found.") {
+        try {
+          const newSession = await createAgentSession(modeRef.current, "agent_first");
+          setSessionId(newSession.session_id);
+          setConfig(newSession.config);
+          const retryData = await sendAgentMessage(newSession.session_id, text);
+          _applyTurnResult(retryData);
+          return retryData;
+        } catch (retryErr) {
+          const errMsg = {
+            role: "assistant",
+            content: "Could not reconnect to the backend. Please refresh the page.",
+            timestamp: Date.now(),
+            isError: true,
+          };
+          setMessages((prev) => [...prev, errMsg]);
+          return null;
+        }
+      }
       setError(err.message);
       const errMsg = {
         role: "assistant",
@@ -90,7 +120,7 @@ export function useAgent() {
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, _applyTurnResult]);
 
   const switchMode = useCallback(async (newMode) => {
     setMode(newMode);
