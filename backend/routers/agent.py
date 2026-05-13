@@ -15,6 +15,7 @@ from backend.models.schemas import (
     AgentMessageResponse,
     AgentSessionRequest,
     AgentSessionResponse,
+    UpdateColumnsRequest,
 )
 from backend.session.store import make_session_expiry
 
@@ -149,3 +150,29 @@ async def get_agent_state(session_id: str) -> dict:
             detail="Agent session not found.",
         )
     return state.model_dump(mode="json")
+
+
+# ── PATCH /agent/columns ───────────────────────────────────────────────────────
+
+@router.patch("/columns")
+async def update_agent_columns(req: UpdateColumnsRequest) -> dict:
+    """Replace the column list in an agent session's config.
+
+    Called after the column config grid is processed so the updated distribution
+    hints and params are available to the generation engine.
+    """
+    state = _agent_store.get(req.session_id)
+    if state is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Agent session not found.",
+        )
+
+    state.config.columns = req.columns
+    state.updated_at = datetime.now(timezone.utc)
+    logger.info(
+        "Updated %d columns for agent session %s",
+        len(req.columns),
+        req.session_id,
+    )
+    return {"ok": True, "column_count": len(req.columns)}

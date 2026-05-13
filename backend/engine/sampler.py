@@ -244,20 +244,56 @@ def _sample_datetime(
 # ── Agent-first spec sampling ─────────────────────────────────────────────────
 
 def _sample_from_spec(spec: ColumnSpec, n_rows: int, rng: np.random.Generator) -> np.ndarray | list:
+    """Sample n_rows values from a ColumnSpec.
+
+    Prefers spec.distribution_params for numeric configuration; falls back to
+    sensible defaults derived from distribution_hint when params are absent.
+    """
     hint = spec.distribution_hint or "normal"
+    p = spec.distribution_params  # may be empty dict
 
     if spec.col_type == "id":
+        fmt = p.get("format_pattern")
+        if fmt:
+            return [f"{fmt}_{i:08d}" for i in range(n_rows)]
         return [f"{spec.name}_{i:08d}" for i in range(n_rows)]
 
     if spec.col_type == "boolean":
-        return rng.integers(0, 2, size=n_rows)
+        prob = float(p.get("p", 0.5))
+        return (rng.random(n_rows) < prob).astype(int)
 
     if spec.col_type == "categorical":
+        allowed: list | None = p.get("allowed_values")
+        if allowed:
+            return rng.choice(allowed, size=n_rows)
         if spec.sample_values:
             return rng.choice(spec.sample_values, size=n_rows)
         return np.array(["category_a"] * n_rows)
 
     if spec.col_type == "datetime":
+        time_start = p.get("time_start")
+        time_end = p.get("time_end")
+        business_only = bool(p.get("business_hours_only", False))
+
+        if time_start and time_end:
+            try:
+                ts_start = datetime.fromisoformat(time_start).replace(tzinfo=timezone.utc)
+                ts_end = datetime.fromisoformat(time_end).replace(tzinfo=timezone.utc)
+                total_seconds = (ts_end - ts_start).total_seconds()
+                offsets = rng.uniform(0, max(total_seconds, 1.0), size=n_rows)
+                result = []
+                for offset in offsets:
+                    ts = ts_start + timedelta(seconds=float(offset))
+                    if business_only:
+                        hour = ts.hour + ts.minute / 60.0
+                        if not (9.0 <= hour < 18.0):
+                            hour_offset = rng.uniform(9.0, 18.0)
+                            ts = ts.replace(hour=int(hour_offset), minute=int((hour_offset % 1) * 60))
+                    result.append(ts.isoformat())
+                return result
+            except (ValueError, OverflowError):
+                logger.warning("Invalid datetime params for column %s — using defaults", spec.name)
+
         base_ts = datetime.now(timezone.utc)
         deltas = rng.exponential(scale=3600.0, size=n_rows)
         result = []
@@ -267,14 +303,31 @@ def _sample_from_spec(spec: ColumnSpec, n_rows: int, rng: np.random.Generator) -
             result.append(current.isoformat())
         return result
 
-    # continuous
+    # continuous — use distribution_params when available
     if hint == "lognormal":
-        return rng.lognormal(mean=5.0, sigma=1.5, size=n_rows)
-    if hint == "exponential":
-        return rng.exponential(scale=1.0, size=n_rows)
-    if hint == "uniform":
-        return rng.uniform(0, 1, size=n_rows)
-    return rng.normal(loc=0, scale=1, size=n_rows)
+        s = float(p.get("s", 1.5))
+        loc = float(p.get("loc", 0.0))
+        scale = float(p.get("scale", 150.0))
+        values = stats.lognorm.rvs(s=s, loc=loc, scale=scale, size=n_rows, random_state=_to_seed(rng))
+    elif hint == "exponential":
+        scale = float(p.get("scale", 1.0))
+        values = rng.exponential(scale=scale, size=n_rows)
+    elif hint == "uniform":
+        loc = float(p.get("loc", 0.0))
+        scale = float(p.get("scale", 1.0))
+        values = rng.uniform(loc, loc + scale, size=n_rows)
+    else:  # normal (default)
+        loc = float(p.get("loc", 0.0))
+        scale = float(p.get("scale", 1.0))
+        values = rng.normal(loc=loc, scale=max(scale, 1e-9), size=n_rows)
+
+    # Apply explicit min/max bounds when provided
+    col_min = p.get("min")
+    col_max = p.get("max")
+    if col_min is not None or col_max is not None:
+        values = np.clip(values, col_min, col_max)
+
+    return values
 
 
 # ── Utilities ─────────────────────────────────────────────────────────────────

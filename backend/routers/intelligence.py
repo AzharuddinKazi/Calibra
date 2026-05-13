@@ -1,4 +1,4 @@
-"""/intelligence/annotate and /intelligence/parse-constraint endpoints."""
+"""/intelligence/annotate, /intelligence/parse-constraint, and /intelligence/parse-column-instruction endpoints."""
 
 from __future__ import annotations
 
@@ -7,10 +7,13 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 
 from backend.intelligence.annotator import annotate_columns
+from backend.intelligence.column_instruction_parser import parse_column_instruction
 from backend.intelligence.constraint_parser import parse_constraint
 from backend.models.schemas import (
     AnnotateRequest,
     AnnotationResponse,
+    ColumnInstructionRequest,
+    ColumnInstructionResponse,
     ParseConstraintRequest,
     ParseConstraintResponse,
 )
@@ -70,3 +73,28 @@ async def parse_constraint_endpoint(
 
     result = parse_constraint(req.natural_language, session.column_profile)
     return result
+
+
+# ── POST /intelligence/parse-column-instruction ───────────────────────────────
+
+@router.post("/parse-column-instruction", response_model=ColumnInstructionResponse)
+async def parse_column_instruction_endpoint(
+    req: ColumnInstructionRequest,
+) -> ColumnInstructionResponse:
+    """Parse a free-text column instruction into structured distribution config.
+
+    Stateless — no session required. LLM failures return success=False rather
+    than a 5xx error, preserving graceful degradation.
+    """
+    if not req.instruction_text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="instruction_text must not be empty.",
+        )
+
+    return parse_column_instruction(
+        column_name=req.column_name,
+        col_type=req.col_type,
+        instruction_text=req.instruction_text,
+        existing_params=req.existing_params,
+    )

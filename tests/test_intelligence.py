@@ -15,10 +15,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from fastapi.testclient import TestClient
+
 from backend.engine.profiler import profile_dataframe
 from backend.intelligence.annotator import annotate_columns, _build_user_message
 from backend.intelligence.constraint_parser import parse_constraint
 from backend.intelligence.report_summariser import summarise_run
+from backend.main import app
 from backend.models.schemas import FidelityScores
 
 
@@ -327,3 +330,115 @@ class TestLLMClient:
             mock_client.messages.create.side_effect = Exception("API down")
             result = call_llm("system", "user")
         assert result is None
+
+
+# ── POST /intelligence/parse-column-instruction endpoint ──────────────────────
+
+class TestParseColumnInstructionEndpoint:
+    _client = TestClient(app)
+
+    def _success_payload(self) -> str:
+        return json.dumps({
+            "success": True,
+            "updated_distribution_hint": "normal",
+            "updated_params": {"loc": 1000.0, "scale": 200.0},
+            "readable_summary": "Normal distribution centred at 1,000.",
+            "constraints_to_add": [],
+            "error_message": None,
+        })
+
+    def test_happy_path_returns_200_with_success_true(self):
+        with patch(
+            "backend.intelligence.column_instruction_parser.call_llm"
+        ) as mock_llm:
+            mock_llm.return_value = self._success_payload()
+            resp = self._client.post(
+                "/intelligence/parse-column-instruction",
+                json={
+                    "column_name": "amount",
+                    "col_type": "continuous",
+                    "instruction_text": "normally distributed around 1,000",
+                },
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+        assert body["updated_distribution_hint"] == "normal"
+
+    def test_empty_instruction_text_returns_422(self):
+        resp = self._client.post(
+            "/intelligence/parse-column-instruction",
+            json={
+                "column_name": "amount",
+                "col_type": "continuous",
+                "instruction_text": "",
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_whitespace_only_instruction_returns_422(self):
+        resp = self._client.post(
+            "/intelligence/parse-column-instruction",
+            json={
+                "column_name": "amount",
+                "col_type": "continuous",
+                "instruction_text": "   ",
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_invalid_col_type_returns_422(self):
+        resp = self._client.post(
+            "/intelligence/parse-column-instruction",
+            json={
+                "column_name": "amount",
+                "col_type": "unknown_type",
+                "instruction_text": "some instruction",
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_llm_failure_returns_200_with_success_false(self):
+        """LLM failures must never produce a 5xx response."""
+        with patch(
+            "backend.intelligence.column_instruction_parser.call_llm"
+        ) as mock_llm:
+            mock_llm.return_value = None
+            resp = self._client.post(
+                "/intelligence/parse-column-instruction",
+                json={
+                    "column_name": "amount",
+                    "col_type": "continuous",
+                    "instruction_text": "normal distribution",
+                },
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is False
+        assert body["error_message"] is not None
+
+    def test_existing_params_accepted(self):
+        with patch(
+            "backend.intelligence.column_instruction_parser.call_llm"
+        ) as mock_llm:
+            mock_llm.return_value = self._success_payload()
+            resp = self._client.post(
+                "/intelligence/parse-column-instruction",
+                json={
+                    "column_name": "amount",
+                    "col_type": "continuous",
+                    "instruction_text": "normal distribution",
+                    "existing_params": {"loc": 500.0, "scale": 100.0},
+                },
+            )
+        assert resp.status_code == 200
+
+    def test_missing_column_name_returns_422(self):
+        resp = self._client.post(
+            "/intelligence/parse-column-instruction",
+            json={
+                "col_type": "continuous",
+                "instruction_text": "normal distribution",
+            },
+        )
+        assert resp.status_code == 422

@@ -174,3 +174,141 @@ class TestDistributionOverrides:
             profiles, 200, rng, distribution_overrides={"amount": override}
         )
         assert set(df["channel"].unique()).issubset({"online", "atm"})
+
+
+# ── distribution_params on ColumnSpec ─────────────────────────────────────────
+
+class TestSampleFromSpecWithDistributionParams:
+    """Tests that _sample_from_spec respects spec.distribution_params."""
+
+    def _config(self, cols):
+        return GenerationConfig(columns=cols)
+
+    def test_normal_distribution_params_loc_scale(self):
+        config = self._config([
+            ColumnSpec(
+                name="amount",
+                col_type="continuous",
+                distribution_hint="normal",
+                distribution_params={"loc": 1000.0, "scale": 100.0},
+            )
+        ])
+        df = sample_from_schema(config, 1000, make_rng(0))
+        # With tight params, mean should be close to 1000
+        assert abs(df["amount"].mean() - 1000.0) < 50.0
+
+    def test_uniform_distribution_params_loc_scale(self):
+        config = self._config([
+            ColumnSpec(
+                name="age",
+                col_type="continuous",
+                distribution_hint="uniform",
+                distribution_params={"loc": 18.0, "scale": 47.0},
+            )
+        ])
+        df = sample_from_schema(config, 500, make_rng(0))
+        assert df["age"].min() >= 18.0
+        assert df["age"].max() <= 65.0
+
+    def test_min_max_bounds_applied(self):
+        config = self._config([
+            ColumnSpec(
+                name="amount",
+                col_type="continuous",
+                distribution_hint="lognormal",
+                distribution_params={"s": 1.5, "loc": 0.0, "scale": 150.0, "min": 0.0, "max": 50000.0},
+            )
+        ])
+        df = sample_from_schema(config, 500, make_rng(0))
+        assert df["amount"].max() <= 50000.0
+        assert df["amount"].min() >= 0.0
+
+    def test_categorical_allowed_values(self):
+        config = self._config([
+            ColumnSpec(
+                name="card_type",
+                col_type="categorical",
+                distribution_params={"allowed_values": ["VISA", "Mastercard", "Amex"]},
+            )
+        ])
+        df = sample_from_schema(config, 200, make_rng(0))
+        assert set(df["card_type"].unique()).issubset({"VISA", "Mastercard", "Amex"})
+
+    def test_empty_distribution_params_uses_defaults(self):
+        """Empty distribution_params should not crash — falls back to hint defaults."""
+        config = self._config([
+            ColumnSpec(
+                name="x",
+                col_type="continuous",
+                distribution_hint="normal",
+                distribution_params={},
+            )
+        ])
+        df = sample_from_schema(config, 100, make_rng(0))
+        assert len(df) == 100
+        assert pd.api.types.is_numeric_dtype(df["x"])
+
+    def test_categorical_allowed_values_takes_precedence_over_sample_values(self):
+        config = self._config([
+            ColumnSpec(
+                name="card_type",
+                col_type="categorical",
+                sample_values=["Diners"],
+                distribution_params={"allowed_values": ["VISA", "Mastercard"]},
+            )
+        ])
+        df = sample_from_schema(config, 100, make_rng(0))
+        assert "Diners" not in df["card_type"].values
+        assert set(df["card_type"].unique()).issubset({"VISA", "Mastercard"})
+
+    def test_lognormal_distribution_params(self):
+        config = self._config([
+            ColumnSpec(
+                name="amount",
+                col_type="continuous",
+                distribution_hint="lognormal",
+                distribution_params={"s": 0.5, "loc": 0.0, "scale": 100.0},
+            )
+        ])
+        df = sample_from_schema(config, 300, make_rng(0))
+        assert df["amount"].min() >= 0.0
+        assert pd.api.types.is_numeric_dtype(df["amount"])
+
+    def test_exponential_distribution_params(self):
+        config = self._config([
+            ColumnSpec(
+                name="wait_time",
+                col_type="continuous",
+                distribution_hint="exponential",
+                distribution_params={"scale": 5.0},
+            )
+        ])
+        df = sample_from_schema(config, 300, make_rng(0))
+        # Exponential values are always positive
+        assert df["wait_time"].min() >= 0.0
+
+    def test_datetime_with_time_bounds(self):
+        config = self._config([
+            ColumnSpec(
+                name="transaction_time",
+                col_type="datetime",
+                distribution_params={
+                    "time_start": "2024-01-01T00:00:00",
+                    "time_end": "2024-12-31T23:59:59",
+                },
+            )
+        ])
+        df = sample_from_schema(config, 50, make_rng(0))
+        assert df["transaction_time"].dtype == object
+        assert all("2024" in v for v in df["transaction_time"])
+
+    def test_id_column_with_format_pattern(self):
+        config = self._config([
+            ColumnSpec(
+                name="emirates_id",
+                col_type="id",
+                distribution_params={"format_pattern": "784-XXXX"},
+            )
+        ])
+        df = sample_from_schema(config, 10, make_rng(0))
+        assert all("784-XXXX_" in v for v in df["emirates_id"])

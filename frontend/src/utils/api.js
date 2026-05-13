@@ -124,3 +124,19 @@ export function sendAgentMessage(sessionId, message) {
 export function getAgentState(sessionId) {
   return request(`/agent/state/${sessionId}`);
 }
+
+export function patchAgentColumns(sessionId, columns) {
+  return request("/agent/columns", {
+    method: "PATCH",
+    body: JSON.stringify({ session_id: sessionId, columns }),
+  });
+}
+
+// ── Intelligence — column instruction ────────────────────────────────────────
+
+export function parseColumnInstruction(payload) {
+  return request("/intelligence/parse-column-instruction", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
