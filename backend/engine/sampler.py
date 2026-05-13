@@ -330,6 +330,58 @@ def _sample_from_spec(spec: ColumnSpec, n_rows: int, rng: np.random.Generator) -
     return values
 
 
+# ── Default schema for domain packs ──────────────────────────────────────────
+
+def get_default_columns(domain_pack: str | None) -> list[ColumnSpec]:
+    """Return a sensible ColumnSpec list when the agent hasn't called define_schema.
+
+    Each domain pack gets a realistic default column set so generation never
+    hard-fails due to a missing schema.
+    """
+    if domain_pack == "fraud":
+        return [
+            ColumnSpec(name="transaction_id", col_type="id"),
+            ColumnSpec(name="amount", col_type="continuous", distribution_hint="lognormal",
+                       distribution_params={"s": 1.5, "loc": 0.0, "scale": 150.0}),
+            ColumnSpec(name="merchant_category", col_type="categorical",
+                       sample_values=["retail", "food_beverage", "travel", "entertainment", "other"]),
+            ColumnSpec(name="card_type", col_type="categorical",
+                       sample_values=["VISA", "Mastercard", "Amex", "Discover"]),
+            ColumnSpec(name="channel", col_type="categorical",
+                       sample_values=["online", "in_store", "atm", "mobile"]),
+            ColumnSpec(name="hour_of_day", col_type="continuous", distribution_hint="uniform",
+                       distribution_params={"loc": 0.0, "scale": 24.0}),
+            ColumnSpec(name="is_fraud", col_type="boolean",
+                       distribution_params={"p": 0.02}),
+        ]
+
+    if domain_pack == "aml":
+        return [
+            ColumnSpec(name="transaction_id", col_type="id"),
+            ColumnSpec(name="sender_account", col_type="id"),
+            ColumnSpec(name="receiver_account", col_type="id"),
+            ColumnSpec(name="amount", col_type="continuous", distribution_hint="lognormal",
+                       distribution_params={"s": 1.8, "loc": 0.0, "scale": 500.0}),
+            ColumnSpec(name="transaction_type", col_type="categorical",
+                       sample_values=["wire_transfer", "ach", "cash_deposit", "check", "atm_withdrawal"]),
+            ColumnSpec(name="timestamp", col_type="datetime"),
+            ColumnSpec(name="is_suspicious", col_type="boolean",
+                       distribution_params={"p": 0.005}),
+        ]
+
+    # General tabular
+    return [
+        ColumnSpec(name="record_id", col_type="id"),
+        ColumnSpec(name="amount", col_type="continuous", distribution_hint="normal",
+                   distribution_params={"loc": 500.0, "scale": 150.0}),
+        ColumnSpec(name="category", col_type="categorical",
+                   sample_values=["category_a", "category_b", "category_c"]),
+        ColumnSpec(name="timestamp", col_type="datetime"),
+        ColumnSpec(name="is_flagged", col_type="boolean",
+                   distribution_params={"p": 0.05}),
+    ]
+
+
 # ── Utilities ─────────────────────────────────────────────────────────────────
 
 def _to_seed(rng: np.random.Generator) -> int:

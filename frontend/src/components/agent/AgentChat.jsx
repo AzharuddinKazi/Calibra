@@ -3,7 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Send, AlertCircle, TableProperties } from "lucide-react";
+import { Send, AlertCircle, TableProperties, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ConfirmGenerate from "./ConfirmGenerate";
 import QuestionModal from "./QuestionModal";
@@ -20,6 +20,7 @@ export default function AgentChat({
   suggestions = [],
   suggestionKey,
   hasColumns = false,
+  generationError = null,
   onSend,
   onGenerate,
   onConfigureColumns,
@@ -169,6 +170,19 @@ export default function AgentChat({
           <div ref={bottomRef} />
         </div>
       </ScrollArea>
+
+      {/* Generation error banner */}
+      {generationError && (
+        <div className="px-4 pb-2 max-w-2xl mx-auto w-full">
+          <div className="flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
+            <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-destructive">Generation failed</p>
+              <p className="text-xs text-destructive/80 mt-0.5 break-words">{generationError}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* "Configure Columns" banner — shown when define_schema has been called */}
       {hasColumns && !readyToGenerate && (

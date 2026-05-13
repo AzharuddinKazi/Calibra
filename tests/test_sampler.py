@@ -312,3 +312,51 @@ class TestSampleFromSpecWithDistributionParams:
         ])
         df = sample_from_schema(config, 10, make_rng(0))
         assert all("784-XXXX_" in v for v in df["emirates_id"])
+
+
+# ── get_default_columns ────────────────────────────────────────────────────────
+
+class TestGetDefaultColumns:
+    def test_fraud_schema_has_required_columns(self):
+        from backend.engine.sampler import get_default_columns
+        cols = get_default_columns("fraud")
+        names = [c.name for c in cols]
+        assert "amount" in names
+        assert "is_fraud" in names
+        assert any(c.col_type == "boolean" for c in cols)
+
+    def test_aml_schema_has_required_columns(self):
+        from backend.engine.sampler import get_default_columns
+        cols = get_default_columns("aml")
+        names = [c.name for c in cols]
+        assert "amount" in names
+        assert "is_suspicious" in names
+        assert any(c.col_type == "datetime" for c in cols)
+
+    def test_general_schema_returned_for_none(self):
+        from backend.engine.sampler import get_default_columns
+        cols = get_default_columns(None)
+        assert len(cols) > 0
+        assert all(hasattr(c, "name") and hasattr(c, "col_type") for c in cols)
+
+    def test_general_schema_returned_for_unknown(self):
+        from backend.engine.sampler import get_default_columns
+        cols = get_default_columns("unknown_pack")
+        assert len(cols) > 0
+
+    def test_fraud_schema_is_generatable(self):
+        from backend.engine.sampler import get_default_columns, sample_from_schema, make_rng
+        cols = get_default_columns("fraud")
+        config = GenerationConfig(columns=cols, row_count=50)
+        df = sample_from_schema(config, 50, make_rng(0))
+        assert len(df) == 50
+        assert "amount" in df.columns
+        assert "is_fraud" in df.columns
+
+    def test_aml_schema_is_generatable(self):
+        from backend.engine.sampler import get_default_columns, sample_from_schema, make_rng
+        cols = get_default_columns("aml")
+        config = GenerationConfig(columns=cols, row_count=50)
+        df = sample_from_schema(config, 50, make_rng(0))
+        assert len(df) == 50
+        assert "is_suspicious" in df.columns

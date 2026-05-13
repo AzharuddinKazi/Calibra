@@ -16,7 +16,7 @@ from backend.constants import SESSION_TTL_HOURS
 from backend.domain_packs.aml import get_domain_pack
 from backend.engine.fidelity import compute_fidelity
 from backend.engine.profiler import profile_dataframe
-from backend.engine.sampler import make_rng, sample_from_profile, sample_from_schema
+from backend.engine.sampler import get_default_columns, make_rng, sample_from_profile, sample_from_schema
 from backend.engine.validator import validate_dataframe
 from backend.models.schemas import (
     ColumnProfile,
@@ -186,11 +186,10 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
             # Agent-first: schema was defined via the agent's define_schema tool.
             agent_config = agent_state.config
             if not agent_config.columns:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=(
-                        "No column schema defined. Ask the agent to define columns before generating."
-                    ),
+                agent_config.columns = get_default_columns(dp_name)
+                logger.info(
+                    "No columns defined for session %s — using default %s schema (%d columns)",
+                    req.session_id, dp_name or "general", len(agent_config.columns),
                 )
             # Propagate row_count from request into config for the sampler.
             agent_config.row_count = req.row_count

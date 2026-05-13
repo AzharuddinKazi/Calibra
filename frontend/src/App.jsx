@@ -22,6 +22,7 @@ export default function App() {
   const [entryLoading, setEntryLoading] = useState(false);
   const [entryError, setEntryError] = useState(null);
   const [generationResult, setGenerationResult] = useState(null);
+  const [generationError, setGenerationError] = useState(null);
   const [previewRunId, setPreviewRunId] = useState(null);
 
   const agent = useAgent();
@@ -44,6 +45,7 @@ export default function App() {
 
   async function handleGenerate(rowCount) {
     if (!agent.sessionId) return;
+    setGenerationError(null);
     try {
       const result = await generate({
         session_id: agent.sessionId,
@@ -56,7 +58,7 @@ export default function App() {
       setPreviewRunId(result.run_id);
       setView(VIEW.RESULTS);
     } catch (err) {
-      alert(`Generation failed: ${err.message}`);
+      setGenerationError(err.message);
     }
   }
 
@@ -66,7 +68,8 @@ export default function App() {
       setGenerationResult(result);
       setPreviewRunId(result.run_id);
     } catch (err) {
-      alert(`Replay failed: ${err.message}`);
+      setGenerationError(err.message);
+      setView(VIEW.AGENT_CHAT);
     }
   }
 
@@ -138,6 +141,7 @@ export default function App() {
               suggestions={agent.suggestions ?? []}
               suggestionKey={agent.suggestionKey}
               hasColumns={hasColumns}
+              generationError={generationError}
               onSend={agent.sendMessage}
               onGenerate={handleGenerate}
               onConfigureColumns={handleConfigureColumns}
@@ -184,6 +188,13 @@ export default function App() {
             onProcess={columnConfig.processColumn}
             onProcessAll={columnConfig.processAll}
             isProcessingAll={columnConfig.isProcessingAll}
+            onAddColumn={columnConfig.addColumn}
+            onDeleteColumn={columnConfig.deleteColumn}
+            onRenameColumn={columnConfig.renameColumn}
+            onMoveColumn={columnConfig.moveColumn}
+            onResetColumn={columnConfig.resetColumn}
+            onDuplicateColumn={columnConfig.duplicateColumn}
+            onApplyTemplate={columnConfig.applyTemplate}
             onBack={() => setView(VIEW.AGENT_CHAT)}
             onContinue={handleColumnConfigComplete}
           />
