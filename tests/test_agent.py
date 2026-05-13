@@ -630,3 +630,208 @@ class TestPatchAgentColumns:
 
         state_resp = self._http.get(f"/agent/state/{session_id}")
         assert state_resp.json()["config"]["columns"] == []
+
+
+# ── _extract_suggestions ───────────────────────────────────────────────────────
+
+class TestExtractSuggestions:
+    """Tests for the config-state-gated suggestion extraction logic."""
+
+    from backend.routers.agent import _extract_suggestions as _es  # noqa: F401
+
+    def _cfg(self, **kwargs) -> dict:
+        """Minimal config dict with all fields defaulting to None / empty."""
+        return {
+            "domain_pack": None,
+            "typologies": [],
+            "prevalence": None,
+            "row_count": None,
+            "columns": None,
+            **kwargs,
+        }
+
+    # ── No question mark → always empty ──────────────────────────────────────
+
+    def test_no_question_mark_returns_empty(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions("Tell me about domains.", self._cfg())
+        assert result == []
+
+    # ── Phase 1: Domain ───────────────────────────────────────────────────────
+
+    def test_phase1_domain_question_returns_options(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions("What kind of data would you like to generate?", self._cfg())
+        assert "Fraud detection" in result
+        assert "AML transaction monitoring" in result
+
+    def test_phase1_domain_already_set_returns_empty(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "What kind of data would you like to generate?",
+            self._cfg(domain_pack="fraud"),
+        )
+        assert "Fraud detection" not in result
+
+    def test_phase1_different_keyword_triggers(self):
+        from backend.routers.agent import _extract_suggestions
+        for phrase in [
+            "What is the purpose?",
+            "What domain should I use?",
+            "What type of data are you building?",
+        ]:
+            assert _extract_suggestions(phrase, self._cfg()), f"Expected suggestions for: {phrase}"
+
+    # ── Phase 2: Fraud typologies ─────────────────────────────────────────────
+
+    def test_phase2_fraud_typology_question_returns_options(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "Which typologies are you interested in?",
+            self._cfg(domain_pack="fraud"),
+        )
+        assert "Card-not-present fraud" in result
+        assert "Account takeover" in result
+
+    def test_phase2_fraud_typologies_already_set_returns_empty(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "Which typologies are you interested in?",
+            self._cfg(domain_pack="fraud", typologies=["card_not_present"]),
+        )
+        assert "Card-not-present fraud" not in result
+
+    def test_phase2_aml_not_shown_for_fraud_domain(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "Which typologies are you interested in?",
+            self._cfg(domain_pack="fraud"),
+        )
+        assert "Structuring / smurfing" not in result
+
+    # ── Phase 2b: AML typologies ──────────────────────────────────────────────
+
+    def test_phase2b_aml_typology_returns_options(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "Which AML typologies would you like to include?",
+            self._cfg(domain_pack="aml"),
+        )
+        assert "Structuring / smurfing" in result
+        assert "Fan-out" in result
+
+    def test_phase2b_aml_typologies_already_set_returns_empty(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "Which AML typologies would you like to include?",
+            self._cfg(domain_pack="aml", typologies=["structuring"]),
+        )
+        assert "Structuring / smurfing" not in result
+
+    # ── Phase 3: Prevalence ───────────────────────────────────────────────────
+
+    def test_phase3_prevalence_fraud_returns_fraud_options(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "What fraud rate would you like?",
+            self._cfg(domain_pack="fraud"),
+        )
+        assert "1% fraud (realistic)" in result
+        assert "0.5% suspicious (realistic)" not in result
+
+    def test_phase3_prevalence_aml_returns_aml_options(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "What suspicious rate would you like?",
+            self._cfg(domain_pack="aml"),
+        )
+        assert "0.5% suspicious (realistic)" in result
+        assert "1% fraud (realistic)" not in result
+
+    def test_phase3_prevalence_already_set_returns_empty(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "What fraud rate would you like?",
+            self._cfg(domain_pack="fraud", prevalence={"fraud": 0.02, "non_fraud": 0.98}),
+        )
+        assert result == []
+
+    # ── Phase 4: Row count ────────────────────────────────────────────────────
+
+    def test_phase4_row_count_returns_options(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "How many rows would you like?",
+            self._cfg(),
+        )
+        assert "10,000 rows" in result
+        assert "100,000 rows" in result
+
+    def test_phase4_row_count_already_set_returns_empty(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "How many rows would you like?",
+            self._cfg(row_count=50000),
+        )
+        assert result == []
+
+    # ── Phase 5: Column schema ────────────────────────────────────────────────
+
+    def test_phase5_columns_undefined_returns_options(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "Can you describe your column schema?",
+            self._cfg(),
+        )
+        assert "Standard transaction schema" in result
+
+    def test_phase5_columns_defined_returns_empty(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "Can you describe your column schema?",
+            self._cfg(columns=[{"name": "amount"}]),
+        )
+        assert "Standard transaction schema" not in result
+
+    # ── Phase 6: Constraints ──────────────────────────────────────────────────
+
+    def test_phase6_constraints_returns_options(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "Are there any business rules or constraints?",
+            self._cfg(),
+        )
+        assert "No constraints needed" in result
+
+    # ── Phase 7: Preview ──────────────────────────────────────────────────────
+
+    def test_phase7_preview_returns_options(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "Would you like a preview?",
+            self._cfg(),
+        )
+        assert "Yes, show me a preview" in result
+
+    # ── Phase 8: Confirmation ─────────────────────────────────────────────────
+
+    def test_phase8_confirmation_returns_options(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions(
+            "Does this look good? Shall I proceed?",
+            self._cfg(),
+        )
+        assert "Yes, generate now" in result
+        assert "No, let me adjust something" in result
+
+    # ── No keyword match ──────────────────────────────────────────────────────
+
+    def test_no_matching_keywords_returns_empty(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions("Thank you for the information!", self._cfg())
+        assert result == []
+
+    def test_question_mark_alone_not_sufficient(self):
+        from backend.routers.agent import _extract_suggestions
+        result = _extract_suggestions("Really?", self._cfg())
+        assert result == []
