@@ -223,6 +223,8 @@ class ColumnSpec(BaseModel):
     col_type: Literal["continuous", "categorical", "datetime", "boolean", "id"]
     distribution_hint: Literal["normal", "lognormal", "uniform", "exponential", "categorical"] | None = None
     sample_values: list[Any] = Field(default_factory=list)
+    agent_instruction: str | None = None
+    distribution_params: dict[str, Any] = Field(default_factory=dict)
 
 
 class GenerationConfig(BaseModel):
@@ -312,3 +314,30 @@ class RunRecord(BaseModel):
     download_url: str | None = None
     report_url: str | None = None
     expires_at: datetime | None = None
+
+
+# ── Column instruction parser (LLM Call 4) ────────────────────────────────────
+
+class ColumnInstructionRequest(BaseModel):
+    column_name: str
+    col_type: Literal["continuous", "categorical", "datetime", "boolean", "id"]
+    instruction_text: str
+    existing_params: dict[str, Any] = Field(default_factory=dict)
+
+
+class ColumnInstructionResponse(BaseModel):
+    success: bool
+    updated_distribution_hint: Literal[
+        "normal", "lognormal", "uniform", "exponential", "categorical"
+    ] | None = None
+    updated_params: dict[str, Any] = Field(default_factory=dict)
+    readable_summary: str | None = None
+    constraints_to_add: list[dict[str, Any]] = Field(default_factory=list)
+    error_message: str | None = None
+
+
+# ── Agent column update ───────────────────────────────────────────────────────
+
+class UpdateColumnsRequest(BaseModel):
+    session_id: str
+    columns: list[ColumnSpec]

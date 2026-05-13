@@ -11,9 +11,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from fastapi.testclient import TestClient
+
 from backend.agent.state import AgentState, ToolCallRecord
 from backend.agent.tools import execute_tool
-from backend.models.schemas import GenerationConfig
+from backend.main import app
+from backend.models.schemas import ColumnSpec, GenerationConfig
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -516,3 +519,114 @@ class TestConfigContextInjection:
 
         result = _inject_config_context([], "[ctx]")
         assert result == []
+
+
+# ── PATCH /agent/columns endpoint ─────────────────────────────────────────────
+
+class TestPatchAgentColumns:
+    _http = TestClient(app)
+
+    def _create_session(self) -> str:
+        resp = self._http.post(
+            "/agent/session",
+            json={"mode": "chat", "entry_point": "agent_first", "upload_session_id": None},
+        )
+        assert resp.status_code == 200
+        return resp.json()["session_id"]
+
+    def test_patch_columns_updates_state(self):
+        session_id = self._create_session()
+        cols = [
+            {"name": "amount", "col_type": "continuous", "distribution_hint": "normal",
+             "sample_values": [], "agent_instruction": None, "distribution_params": {"loc": 500.0}},
+            {"name": "channel", "col_type": "categorical", "distribution_hint": None,
+             "sample_values": ["online", "atm"], "agent_instruction": None, "distribution_params": {}},
+        ]
+        resp = self._http.patch(
+            "/agent/columns",
+            json={"session_id": session_id, "columns": cols},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["ok"] is True
+        assert body["column_count"] == 2
+
+        # Verify state via GET /agent/state
+        state_resp = self._http.get(f"/agent/state/{session_id}")
+        state = state_resp.json()
+        names = [c["name"] for c in state["config"]["columns"]]
+        assert "amount" in names
+        assert "channel" in names
+
+    def test_patch_unknown_session_returns_404(self):
+        resp = self._http.patch(
+            "/agent/columns",
+            json={"session_id": "nonexistent-session-xyz", "columns": []},
+        )
+        assert resp.status_code == 404
+
+    def test_patch_preserves_other_config_fields(self):
+        session_id = self._create_session()
+
+        # Set domain pack first
+        with patch("backend.agent.agent._client") as mock_client:
+            block = MagicMock()
+            block.type = "text"
+            block.text = "Got it."
+            response = MagicMock()
+            response.content = [block]
+            response.stop_reason = "end_turn"
+            mock_client.messages.create.return_value = response
+            self._http.post(
+                "/agent/message",
+                json={"session_id": session_id, "message": "Use fraud domain"},
+            )
+
+        # Set domain pack directly via tool
+        from backend.routers.agent import _agent_store
+        if session_id in _agent_store:
+            _agent_store[session_id].config.domain_pack = "fraud"
+
+        # Now patch columns
+        cols = [
+            {"name": "amount", "col_type": "continuous", "distribution_hint": None,
+             "sample_values": [], "agent_instruction": None, "distribution_params": {}},
+        ]
+        self._http.patch("/agent/columns", json={"session_id": session_id, "columns": cols})
+
+        state_resp = self._http.get(f"/agent/state/{session_id}")
+        state = state_resp.json()
+        assert state["config"]["domain_pack"] == "fraud"
+        assert len(state["config"]["columns"]) == 1
+
+    def test_patch_with_distribution_params_round_trip(self):
+        session_id = self._create_session()
+        cols = [
+            {
+                "name": "amount",
+                "col_type": "continuous",
+                "distribution_hint": "lognormal",
+                "sample_values": [],
+                "agent_instruction": "log-normal, max $50,000",
+                "distribution_params": {"s": 1.5, "loc": 0.0, "scale": 150.0, "max": 50000.0},
+            }
+        ]
+        resp = self._http.patch("/agent/columns", json={"session_id": session_id, "columns": cols})
+        assert resp.status_code == 200
+
+        state_resp = self._http.get(f"/agent/state/{session_id}")
+        col = state_resp.json()["config"]["columns"][0]
+        assert col["distribution_params"]["max"] == pytest.approx(50000.0)
+        assert col["agent_instruction"] == "log-normal, max $50,000"
+
+    def test_patch_empty_columns_list(self):
+        session_id = self._create_session()
+        resp = self._http.patch(
+            "/agent/columns",
+            json={"session_id": session_id, "columns": []},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["column_count"] == 0
+
+        state_resp = self._http.get(f"/agent/state/{session_id}")
+        assert state_resp.json()["config"]["columns"] == []

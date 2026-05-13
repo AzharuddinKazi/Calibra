@@ -3,9 +3,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Send, AlertCircle } from "lucide-react";
+import { Send, AlertCircle, TableProperties } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ConfirmGenerate from "./ConfirmGenerate";
+import QuestionModal from "./QuestionModal";
 
 function formatTime(date) {
   return new Date(date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -17,15 +18,32 @@ export default function AgentChat({
   readyToGenerate,
   config,
   suggestions = [],
+  hasColumns = false,
   onSend,
   onGenerate,
+  onConfigureColumns,
 }) {
   const [input, setInput] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
   const bottomRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading, suggestions]);
+  }, [messages, isLoading]);
+
+  // Open the question modal whenever new suggestions arrive and we're not loading
+  useEffect(() => {
+    if (suggestions.length > 0 && !isLoading) {
+      setModalOpen(true);
+    }
+  }, [suggestions, isLoading]);
+
+  // Derive the last agent question for the modal header
+  const lastAgentMessage = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant" && !m.isError);
+  const modalQuestion =
+    lastAgentMessage?.content ?? "How would you like to proceed?";
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -41,8 +59,8 @@ export default function AgentChat({
     }
   }
 
-  function handleSuggestion(text) {
-    if (isLoading) return;
+  function handleModalSelect(text) {
+    setModalOpen(false);
     onSend(text);
   }
 
@@ -147,29 +165,24 @@ export default function AgentChat({
             </div>
           )}
 
-          {/* Suggestion chips — shown after last agent message */}
-          {!isLoading && suggestions.length > 0 && (
-            <div className="flex flex-wrap gap-2 pl-10 pt-1">
-              {suggestions.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => handleSuggestion(s)}
-                  className={cn(
-                    "text-xs px-3.5 py-2 rounded-full border transition-all duration-150",
-                    "border-primary/30 text-primary bg-primary/5",
-                    "hover:bg-primary/15 hover:border-primary/60 hover:shadow-[0_0_10px_hsl(235_80%_65%/0.2)]",
-                    "active:scale-95 cursor-pointer font-medium"
-                  )}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-
           <div ref={bottomRef} />
         </div>
       </ScrollArea>
+
+      {/* "Configure Columns" banner — shown when define_schema has been called */}
+      {hasColumns && !readyToGenerate && (
+        <div className="px-4 pb-2 max-w-2xl mx-auto w-full">
+          <Button
+            onClick={onConfigureColumns}
+            variant="outline"
+            className="w-full gap-2 border-primary/30 text-primary hover:border-primary/60 hover:bg-primary/5"
+            size="sm"
+          >
+            <TableProperties className="h-4 w-4" />
+            Configure your columns →
+          </Button>
+        </div>
+      )}
 
       {readyToGenerate && (
         <div className="px-4 pb-2 max-w-2xl mx-auto w-full">
@@ -197,6 +210,15 @@ export default function AgentChat({
           </Button>
         </form>
       </div>
+
+      {/* Question modal — replaces inline suggestion chips */}
+      <QuestionModal
+        open={modalOpen}
+        question={modalQuestion}
+        options={suggestions}
+        onSelect={handleModalSelect}
+        onClose={() => setModalOpen(false)}
+      />
     </div>
   );
 }

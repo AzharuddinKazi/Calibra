@@ -33,6 +33,7 @@ PROMPT_VERSIONS = {
     "annotate": "annotate_columns_v1.txt",
     "parse_constraint": "parse_constraints_v1.txt",
     "summarise": "summarise_report_v1.txt",
+    "parse_column_instruction": "parse_column_instruction_v1.txt",
 }
 
 # ── Agent ──────────────────────────────────────────────────────────────────────

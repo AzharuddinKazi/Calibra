@@ -21,20 +21,23 @@ import AgentChat from "./components/agent/AgentChat";
 import AgentWizard from "./components/agent/AgentWizard";
 import ConfigSummaryPanel from "./components/agent/ConfigSummaryPanel";
 import ConfirmGenerate from "./components/agent/ConfirmGenerate";
+import ColumnConfigGrid from "./components/columnconfig/ColumnConfigGrid";
 import DataPreview from "./components/preview/DataPreview";
 import ResultsDownload from "./components/results/ResultsDownload";
 import { useAgent } from "./hooks/useAgent";
 import { useAnnotation } from "./hooks/useAnnotation";
 import { useConstraintParser } from "./hooks/useConstraintParser";
 import { useDistributionOverrides } from "./hooks/useDistributionOverrides";
+import { useColumnConfig } from "./hooks/useColumnConfig";
 import { annotateColumns } from "./utils/api";
-import { generate, replay } from "./utils/api";
+import { generate, replay, patchAgentColumns } from "./utils/api";
 
 const VIEW = {
   ENTRY: "entry",
   UPLOAD: "upload",
   CONFIGURE: "configure",
   AGENT_CHAT: "agent_chat",
+  COLUMN_CONFIG: "column_config",
   RESULTS: "results",
 };
 
@@ -126,6 +129,7 @@ export default function App() {
   const annotation = useAnnotation();
   const constraintParser = useConstraintParser();
   const { overrides, setOverride, clearOverride } = useDistributionOverrides();
+  const columnConfig = useColumnConfig();
 
   async function handleEntrySelect(entryPoint, mode) {
     setEntryError(null);
@@ -237,6 +241,30 @@ export default function App() {
     }
   }
 
+  function handleConfigureColumns() {
+    const specs = agent.config?.columns;
+    if (specs?.length > 0) {
+      // Only re-initialise the grid on first visit to preserve prior edits
+      if (columnConfig.columns.length === 0) {
+        columnConfig.initFromSpec(specs);
+      }
+      setView(VIEW.COLUMN_CONFIG);
+    }
+  }
+
+  async function handleColumnConfigComplete() {
+    const updatedSpecs = columnConfig.getUpdatedSpecs();
+    if (agent.sessionId && updatedSpecs.length > 0) {
+      try {
+        await patchAgentColumns(agent.sessionId, updatedSpecs);
+      } catch (err) {
+        // Non-fatal — generation uses whatever the server has
+        console.error("Failed to sync column config:", err.message);
+      }
+    }
+    setView(VIEW.CONFIGURE);
+  }
+
   const selectedCatProfile = columnProfiles.find(
     (p) => p.name === selectedCatColumn && p.col_type === "categorical"
   ) ?? null;
@@ -259,6 +287,8 @@ export default function App() {
   }
 
   if (view === VIEW.AGENT_CHAT) {
+    const hasColumns = !!(agent.config?.columns?.length > 0);
+
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <header className="h-14 border-b border-border flex items-center px-5 shrink-0 bg-card/50 backdrop-blur-sm">
@@ -306,9 +336,11 @@ export default function App() {
                 isLoading={agent.isLoading}
                 readyToGenerate={agent.readyToGenerate}
                 config={agent.config}
-                suggestions={agent.suggestions}
+                suggestions={agent.suggestions ?? []}
+                hasColumns={hasColumns}
                 onSend={agent.sendMessage}
                 onGenerate={handleGenerate}
+                onConfigureColumns={handleConfigureColumns}
               />
             ) : (
               <AgentWizard
@@ -327,6 +359,38 @@ export default function App() {
               <ConfigSummaryPanel config={agent.config} />
             </div>
           </aside>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === VIEW.COLUMN_CONFIG) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <header className="h-14 border-b border-border flex items-center px-5 shrink-0 bg-card/50 backdrop-blur-sm">
+          <button
+            onClick={() => setView(VIEW.AGENT_CHAT)}
+            className="text-muted-foreground hover:text-foreground transition-colors text-sm flex items-center gap-1.5 mr-5"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Chat
+          </button>
+          <span className="text-primary text-base leading-none mr-2">◆</span>
+          <span className="font-semibold text-sm">Calibra</span>
+          <span className="mx-3 text-border/60">|</span>
+          <span className="text-sm text-muted-foreground">Column Configuration</span>
+        </header>
+
+        <div className="flex-1 overflow-hidden" style={{ height: "calc(100vh - 3.5rem)" }}>
+          <ColumnConfigGrid
+            columns={columnConfig.columns}
+            onColumnChange={columnConfig.updateField}
+            onProcess={columnConfig.processColumn}
+            onProcessAll={columnConfig.processAll}
+            isProcessingAll={columnConfig.isProcessingAll}
+            onBack={() => setView(VIEW.AGENT_CHAT)}
+            onContinue={handleColumnConfigComplete}
+          />
         </div>
       </div>
     );
