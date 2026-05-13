@@ -184,8 +184,8 @@ export default function AgentChat({
         </div>
       )}
 
-      {/* "Configure Columns" banner — shown when define_schema has been called */}
-      {hasColumns && !readyToGenerate && (
+      {/* "Configure Columns" button — always visible once columns exist, even after mark_ready */}
+      {hasColumns && (
         <div className="px-4 pb-2 max-w-2xl mx-auto w-full">
           <Button
             onClick={onConfigureColumns}
