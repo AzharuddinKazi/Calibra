@@ -296,6 +296,50 @@ class TestRunPreview:
         assert "incomplete" in result.lower() or "Cannot" in result
 
 
+# ── set_row_count ──────────────────────────────────────────────────────────────
+
+class TestSetRowCount:
+    @pytest.mark.asyncio
+    async def test_sets_row_count(self):
+        state = _make_state()
+        result = await execute_tool("set_row_count", {"row_count": 50000}, state)
+        assert state.config.row_count == 50000
+        assert "50,000" in result
+
+    @pytest.mark.asyncio
+    async def test_overwrites_previous_row_count(self):
+        state = _make_state()
+        await execute_tool("set_row_count", {"row_count": 10000}, state)
+        await execute_tool("set_row_count", {"row_count": 100000}, state)
+        assert state.config.row_count == 100000
+
+    @pytest.mark.asyncio
+    async def test_zero_row_count_returns_error(self):
+        state = _make_state()
+        result = await execute_tool("set_row_count", {"row_count": 0}, state)
+        assert state.config.row_count is None
+        assert "positive" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_negative_row_count_returns_error(self):
+        state = _make_state()
+        result = await execute_tool("set_row_count", {"row_count": -500}, state)
+        assert state.config.row_count is None
+
+    @pytest.mark.asyncio
+    async def test_non_integer_returns_error(self):
+        state = _make_state()
+        result = await execute_tool("set_row_count", {"row_count": "lots"}, state)
+        assert state.config.row_count is None
+        assert "Invalid" in result or "invalid" in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_logs_tool_call(self):
+        state = _make_state()
+        await execute_tool("set_row_count", {"row_count": 5000}, state)
+        assert any(t.tool_name == "set_row_count" for t in state.tool_calls_log)
+
+
 # ── mark_ready ─────────────────────────────────────────────────────────────────
 
 class TestMarkReady:

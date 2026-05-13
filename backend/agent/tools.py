@@ -1,4 +1,4 @@
-"""Six agent tool definitions and their handlers.
+"""Seven agent tool definitions and their handlers.
 
 Tool handlers mutate AgentState in-place and return a plain-string result
 message. They never raise — errors are returned as result strings.
@@ -145,6 +145,23 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "set_row_count",
+        "description": (
+            "Set the number of rows to generate. Call this as soon as the user "
+            "confirms a row count so it is reflected in the generation UI."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "row_count": {
+                    "type": "integer",
+                    "description": "Number of rows to generate. Must be a positive integer.",
+                },
+            },
+            "required": ["row_count"],
+        },
+    },
+    {
         "name": "mark_ready",
         "description": (
             "Mark the configuration as complete and ready for generation. "
@@ -183,6 +200,7 @@ async def execute_tool(
         "set_prevalence": _handle_set_prevalence,
         "add_constraint": _handle_add_constraint,
         "define_schema": _handle_define_schema,
+        "set_row_count": _handle_set_row_count,
         "run_preview": _handle_run_preview,
         "mark_ready": _handle_mark_ready,
     }
@@ -320,6 +338,22 @@ async def _handle_define_schema(
     state.config.columns = columns
     names = [c.name for c in columns]
     return f"Schema defined with {len(columns)} columns: {names}."
+
+
+async def _handle_set_row_count(
+    inputs: dict[str, Any], state: AgentState
+) -> str:
+    """Persist the user's chosen row count to the generation config."""
+    try:
+        row_count = int(inputs.get("row_count", 0))
+    except (TypeError, ValueError) as exc:
+        return f"Invalid row_count: {exc}"
+
+    if row_count <= 0:
+        return "row_count must be a positive integer."
+
+    state.config.row_count = row_count
+    return f"Row count set to {row_count:,}."
 
 
 async def _handle_run_preview(

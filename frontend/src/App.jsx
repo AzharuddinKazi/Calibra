@@ -74,13 +74,13 @@ export default function App() {
   }
 
   function handleConfigureColumns() {
+    // Always allow entry into the column config view.
+    // Init from agent config if available and not yet initialised locally.
     const specs = agent.config?.columns;
-    if (specs?.length > 0) {
-      if (columnConfig.columns.length === 0) {
-        columnConfig.initFromSpec(specs);
-      }
-      setView(VIEW.COLUMN_CONFIG);
+    if (specs?.length > 0 && columnConfig.columns.length === 0) {
+      columnConfig.initFromSpec(specs);
     }
+    setView(VIEW.COLUMN_CONFIG);
   }
 
   async function handleColumnConfigComplete() {
