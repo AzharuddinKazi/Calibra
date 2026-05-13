@@ -357,7 +357,11 @@ export default function App() {
 
           <aside className="w-72 border-l border-border bg-card overflow-y-auto shrink-0 hidden lg:block">
             <div className="p-5">
-              <ConfigSummaryPanel config={agent.config} />
+              <ConfigSummaryPanel
+                config={agent.config}
+                hasColumns={hasColumns}
+                onConfigureColumns={handleConfigureColumns}
+              />
             </div>
           </aside>
         </div>

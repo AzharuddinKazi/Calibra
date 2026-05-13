@@ -126,54 +126,89 @@ async def upload_csv(file: UploadFile = File(...)) -> UploadResponse:
 
 @router.post("/generate", response_model=GenerateResponse)
 async def generate(req: GenerateRequest) -> GenerateResponse:
-    """Run the generation engine and return a run record."""
+    """Run the generation engine and return a run record.
+
+    Handles both upload-first (session has column profiles from CSV) and
+    agent-first (session is an AgentState with a schema defined via the agent).
+    """
+    # Try upload session first; fall back to agent session for agent-first flow.
     session = await get_session(req.session_id)
+    agent_state = None
     if session is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session not found or expired.",
-        )
+        # Lazy import avoids a circular dependency at module load time.
+        from backend.routers.agent import get_agent_session  # noqa: PLC0415
+        agent_state = get_agent_session(req.session_id)
+        if agent_state is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Session not found or expired.",
+            )
 
     rng = make_rng(req.random_seed)
     run_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
 
-    # Determine domain pack and constraints
+    # Resolve domain pack — prefer agent config for agent-first flows.
+    dp_name = (
+        (agent_state.config.domain_pack or "none")
+        if agent_state is not None
+        else req.domain_pack
+    )
     domain_pack_obj = None
-    if req.domain_pack and req.domain_pack != "none":
+    if dp_name and dp_name != "none":
         try:
-            domain_pack_obj = get_domain_pack(req.domain_pack)
+            domain_pack_obj = get_domain_pack(dp_name)
         except KeyError:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Unknown domain pack: {req.domain_pack}",
+                detail=f"Unknown domain pack: {dp_name}",
             )
 
-    constraints = list(session.active_constraints)
+    # Merge constraints from session/agent config and domain pack.
+    if agent_state is not None:
+        constraints = list(agent_state.config.constraints)
+    else:
+        constraints = list(session.active_constraints)  # type: ignore[union-attr]
     if domain_pack_obj:
         constraints.extend(domain_pack_obj.get_constraints(req.domain_config))
 
+    # Resolve prevalence targets — agent config takes precedence for agent-first.
     prevalence_targets: dict[str, float] = {}
-    if domain_pack_obj:
+    if agent_state is not None and agent_state.config.prevalence:
+        prevalence_targets = agent_state.config.prevalence
+    elif domain_pack_obj:
         prev_config = domain_pack_obj.get_prevalence_config(req.domain_config)
         prevalence_targets = prev_config.targets
 
-    # Sample synthetic data
+    # Sample synthetic data.
     try:
-        if session.column_profile:
+        if agent_state is not None:
+            # Agent-first: schema was defined via the agent's define_schema tool.
+            agent_config = agent_state.config
+            if not agent_config.columns:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=(
+                        "No column schema defined. Ask the agent to define columns before generating."
+                    ),
+                )
+            # Propagate row_count from request into config for the sampler.
+            agent_config.row_count = req.row_count
+            synthetic_df = sample_from_schema(agent_config, req.row_count, rng)
+        elif session.column_profile:  # type: ignore[union-attr]
             synthetic_df = sample_from_profile(
-                session.column_profile,
+                session.column_profile,  # type: ignore[union-attr]
                 req.row_count,
                 rng,
                 distribution_overrides=req.distribution_overrides or {},
             )
         else:
-            from backend.models.schemas import GenerationConfig
-            gen_config = GenerationConfig(
-                domain_pack=req.domain_pack,
-                row_count=req.row_count,
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Session has no column data. Upload a CSV or define a schema via the agent.",
             )
-            synthetic_df = sample_from_schema(gen_config, req.row_count, rng)
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("Sampling failed for session %s", req.session_id)
         raise HTTPException(
@@ -181,20 +216,31 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
             detail=f"Generation failed: {exc}",
         ) from exc
 
-    # Validate constraints
-    def resample_row(_row: dict[str, Any]) -> dict[str, Any] | None:
-        mini_df = sample_from_profile(
-            session.column_profile, 1, rng, distribution_overrides=req.distribution_overrides or {}
-        )
-        return mini_df.iloc[0].to_dict() if not mini_df.empty else None
+    # Build the resampler for constraint validation.
+    if agent_state is not None:
+        _agent_cfg = agent_state.config
+
+        def resample_row(_row: dict[str, Any]) -> dict[str, Any] | None:
+            try:
+                mini_df = sample_from_schema(_agent_cfg, 1, rng)
+                return mini_df.iloc[0].to_dict() if not mini_df.empty else None
+            except Exception:
+                return None
+    else:
+        def resample_row(_row: dict[str, Any]) -> dict[str, Any] | None:
+            mini_df = sample_from_profile(
+                session.column_profile, 1, rng,  # type: ignore[union-attr]
+                distribution_overrides=req.distribution_overrides or {},
+            )
+            return mini_df.iloc[0].to_dict() if not mini_df.empty else None
 
     validated_df, constraint_failures = validate_dataframe(
         synthetic_df, constraints, resample_row
     )
 
-    # Compute fidelity if we have source data
+    # Fidelity only applies when we have source data (upload-first).
     fidelity_scores = None
-    if session.column_profile:
+    if session is not None and session.column_profile:
         try:
             real_df = _reconstruct_reference_df(session.column_profile)
             if real_df is not None:
@@ -202,17 +248,15 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
         except Exception:
             logger.warning("Fidelity computation failed for run %s", run_id, exc_info=True)
 
-    # Store outputs
     _output_store[run_id] = validated_df
 
-    # Build and store run record
     run = RunRecord(
         run_id=run_id,
         session_id=req.session_id,
         created_at=now,
         row_count_requested=req.row_count,
         row_count_delivered=len(validated_df),
-        domain_pack=req.domain_pack if req.domain_pack != "none" else None,
+        domain_pack=dp_name if dp_name != "none" else None,
         domain_config=req.domain_config,
         random_seed=req.random_seed,
         fidelity_scores=fidelity_scores,
@@ -222,12 +266,14 @@ async def generate(req: GenerateRequest) -> GenerateResponse:
         download_url=f"/download/{run_id}",
         report_url=f"/report/{run_id}",
         expires_at=make_session_expiry(),
+        entry_point="agent_first" if agent_state is not None else "upload_first",
     )
     _run_store[run_id] = run
 
     logger.info(
-        "Generation complete: run_id=%s, rows=%d/%d, failures=%d",
+        "Generation complete: run_id=%s, rows=%d/%d, failures=%d, entry=%s",
         run_id, len(validated_df), req.row_count, constraint_failures,
+        run.entry_point,
     )
 
     return GenerateResponse(

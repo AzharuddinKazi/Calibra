@@ -1,5 +1,6 @@
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, TableProperties } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function FieldRow({ label, value, required }) {
@@ -24,10 +25,10 @@ function FieldRow({ label, value, required }) {
   );
 }
 
-export default function ConfigSummaryPanel({ config }) {
+export default function ConfigSummaryPanel({ config, hasColumns = false, onConfigureColumns }) {
   if (!config) return null;
 
-  const { domain_pack, typologies, row_count, prevalence, constraints, ready_to_generate } = config;
+  const { domain_pack, typologies, row_count, prevalence, constraints, columns, ready_to_generate } = config;
   const prevalenceSummary = prevalence
     ? Object.entries(prevalence)
         .map(([k, v]) => `${k}: ${(v * 100).toFixed(1)}%`)
@@ -62,6 +63,25 @@ export default function ConfigSummaryPanel({ config }) {
         label="Constraints"
         value={constraints?.length ? `${constraints.length} active` : null}
       />
+      <FieldRow
+        label="Columns"
+        value={columns?.length ? `${columns.length} defined` : null}
+      />
+
+      {hasColumns && onConfigureColumns && (
+        <>
+          <Separator className="my-3" />
+          <Button
+            onClick={onConfigureColumns}
+            variant="outline"
+            size="sm"
+            className="w-full gap-2 border-primary/30 text-primary hover:border-primary/60 hover:bg-primary/5 text-xs h-8"
+          >
+            <TableProperties className="h-3 w-3" />
+            Configure Columns
+          </Button>
+        </>
+      )}
 
       {ready_to_generate && (
         <div className="mt-4 flex items-center gap-2 text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2.5">
