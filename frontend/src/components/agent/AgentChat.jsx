@@ -18,6 +18,7 @@ export default function AgentChat({
   readyToGenerate,
   config,
   suggestions = [],
+  suggestionKey,
   hasColumns = false,
   onSend,
   onGenerate,
@@ -211,8 +212,9 @@ export default function AgentChat({
         </form>
       </div>
 
-      {/* Question modal — replaces inline suggestion chips */}
+      {/* Question modal — key forces remount each turn so state resets even when options are identical */}
       <QuestionModal
+        key={suggestionKey}
         open={modalOpen}
         question={modalQuestion}
         options={suggestions}

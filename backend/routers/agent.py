@@ -27,51 +27,143 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 # ── Quick-reply suggestion extraction ─────────────────────────────────────────
 
 def _extract_suggestions(reply: str, config: dict) -> list[str]:
-    """Return contextual quick-reply chips based on what the agent just asked.
+    """Return contextual quick-reply options based on the agent's current question.
 
-    Pattern-matches against the reply text and the current config state to
-    surface the most relevant one-click answers for the current question.
+    Uses BOTH the reply text and the current config state to determine which
+    question phase the agent is in, then returns options appropriate for that
+    phase.  Config-state checks come first so options never repeat from a phase
+    that has already been completed.
     """
     r = reply.lower()
     has_q = "?" in reply
+    if not has_q:
+        return []
 
-    # Domain pack — only when not yet set
-    if not config.get("domain_pack") and has_q and any(
-        kw in r for kw in ["domain", "kind of data", "type of data", "use case", "what are you"]
+    domain = config.get("domain_pack")
+    typologies = config.get("typologies") or []
+    prevalence = config.get("prevalence")
+    row_count = config.get("row_count")
+    columns = config.get("columns")
+
+    # ── Phase 1: Domain — only when not yet set ───────────────────────────────
+    if not domain and any(
+        kw in r for kw in [
+            "domain", "kind of data", "type of data", "use case",
+            "what are you", "what would you", "what kind", "purpose",
+            "building", "training", "generating", "create",
+        ]
     ):
-        return ["Fraud detection", "AML transaction monitoring", "General tabular data", "Not sure yet"]
+        return [
+            "Fraud detection",
+            "AML transaction monitoring",
+            "General tabular data",
+            "Not sure yet",
+        ]
 
-    # Row count
-    if has_q and any(kw in r for kw in ["how many rows", "row count", "many rows", "dataset size", "how large", "how big"]):
+    # ── Phase 2: Fraud typologies — only when domain=fraud and typologies unset ─
+    if domain == "fraud" and not typologies and any(
+        kw in r for kw in [
+            "typolog", "type of fraud", "specific type", "which type",
+            "kind of fraud", "fraud type", "card", "takeover",
+            "synthetic identity", "interested in", "focus on",
+        ]
+    ):
+        return [
+            "Card-not-present fraud",
+            "Account takeover",
+            "Synthetic identity",
+            "First-party fraud",
+            "All typologies",
+        ]
+
+    # ── Phase 2b: AML typologies — only when domain=aml and typologies unset ──
+    if domain == "aml" and not typologies and any(
+        kw in r for kw in [
+            "typolog", "structuring", "layering", "fan-out", "fan-in",
+            "circular", "scatter", "aml typolog", "pattern", "scheme",
+            "money laundering", "which", "type",
+        ]
+    ):
+        return [
+            "Structuring / smurfing",
+            "Fan-out",
+            "Fan-in / aggregation",
+            "Circular flow",
+            "Scatter-gather",
+        ]
+
+    # ── Phase 3: Prevalence — only when not yet set ───────────────────────────
+    if not prevalence and any(
+        kw in r for kw in [
+            "prevalence", "fraud rate", "% fraud", "percentage of fraud",
+            "fraction of fraud", "what rate", "what percentage", "how much fraud",
+            "target rate", "fraud proportion", "ratio", "aml rate", "suspicious",
+        ]
+    ):
+        if domain == "aml":
+            return [
+                "0.5% suspicious (realistic)",
+                "1% suspicious",
+                "3% suspicious",
+                "5% suspicious (elevated)",
+            ]
+        return [
+            "1% fraud (realistic)",
+            "2% fraud",
+            "5% fraud",
+            "10% fraud (elevated)",
+        ]
+
+    # ── Phase 4: Row count — only when not yet set ────────────────────────────
+    if not row_count and any(
+        kw in r for kw in [
+            "how many rows", "row count", "many rows", "dataset size",
+            "how large", "how big", "number of rows", "how many records",
+            "size of", "many records", "volume",
+        ]
+    ):
         return ["10,000 rows", "50,000 rows", "100,000 rows", "500,000 rows"]
 
-    # Prevalence / fraud rate
-    if has_q and any(kw in r for kw in ["prevalence", "fraud rate", "% fraud", "percentage of fraud", "fraction of fraud", "what rate", "what percentage"]):
-        return ["1% fraud (realistic)", "2% fraud", "5% fraud", "10% fraud (elevated)"]
+    # ── Phase 5: Column schema — only when columns not yet defined ────────────
+    if not columns and any(
+        kw in r for kw in [
+            "column", "schema", "fields", "feature", "describe your",
+            "tell me about your", "what columns", "which columns",
+            "data structure", "attributes", "variables",
+        ]
+    ):
+        return [
+            "Standard transaction schema",
+            "I'll describe the columns manually",
+            "Similar to a bank ledger",
+        ]
 
-    # Fraud typologies
-    if has_q and any(kw in r for kw in ["typolog", "type of fraud", "specific type", "which type", "card", "takeover", "synthetic identity"]):
-        return ["Card-not-present fraud", "Account takeover", "Synthetic identity", "First-party fraud", "All typologies"]
+    # ── Phase 6: Constraints — open question about business rules ─────────────
+    if any(
+        kw in r for kw in [
+            "constraint", "business rule", "any rule", "rule you",
+            "restrict", "limitation", "requirement", "must", "should",
+        ]
+    ):
+        return [
+            "Transaction amount must be positive",
+            "Add a specific rule",
+            "No constraints needed",
+        ]
 
-    # AML typologies
-    if has_q and any(kw in r for kw in ["structuring", "layering", "fan-out", "fan-in", "circular", "scatter", "aml typolog"]):
-        return ["Structuring / smurfing", "Fan-out", "Fan-in / aggregation", "Circular flow", "Scatter-gather"]
-
-    # Constraints
-    if has_q and any(kw in r for kw in ["constraint", "business rule", "any rule", "rule you", "restrict"]):
-        return ["Transaction amount > $0", "Add a rule", "No constraints needed"]
-
-    # Column schema (agent-first, no CSV)
-    if has_q and any(kw in r for kw in ["column", "schema", "fields", "feature", "describe your", "tell me about your"]):
-        return ["Standard transaction schema", "I'll describe the columns manually", "Similar to a bank ledger"]
-
-    # Confirmation before marking ready
-    if has_q and any(kw in r for kw in ["ready to generate", "shall i", "want me to generate", "look good", "does this look", "happy with"]):
-        return ["Yes, generate now", "No, let me adjust something"]
-
-    # Preview offer
-    if has_q and any(kw in r for kw in ["preview", "sample", "quick look", "want to see"]):
+    # ── Phase 7: Preview offer ────────────────────────────────────────────────
+    if any(kw in r for kw in ["preview", "sample", "quick look", "want to see", "show you"]):
         return ["Yes, show me a preview", "Skip preview, generate full dataset"]
+
+    # ── Phase 8: Final confirmation ───────────────────────────────────────────
+    if any(
+        kw in r for kw in [
+            "ready to generate", "shall i", "want me to generate",
+            "look good", "does this look", "happy with", "everything look",
+            "confirm", "proceed",
+        ]
+    ):
+        return ["Yes, generate now", "No, let me adjust something"]
 
     return []
 
